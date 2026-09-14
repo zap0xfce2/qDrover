@@ -1,0 +1,37 @@
+version: '3'
+silent: true
+
+vars:
+  # Build-Version im Format vYYMMDDhhmm, per ldflags in main.version injiziert.
+  QDROVER_VERSION:
+    sh: date +v%y%m%d%H%M
+
+tasks:
+  install:
+    desc: Linux-Binary aus dist/ nach ~/bin/qdrover installieren
+    deps: [dist-build]
+    cmds:
+      - mkdir -p $HOME/bin
+      - cp dist/qdrover_amd64 $HOME/bin/qdrover
+
+  dist-build:
+    desc: Cross-Builds nach dist/ (Linux amd64, macOS arm64) — nicht installiert
+    cmds:
+      - mkdir -p dist
+      - GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_amd64 ./cmd/qdrover
+      - GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_arm64 ./cmd/qdrover
+
+  test:
+    desc: Alle Tests ausführen
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: golangci-lint über das gesamte Modul laufen lassen
+    cmds:
+      - golangci-lint run
+
+  run:
+    desc: TUI direkt starten (go run)
+    cmds:
+      - go run ./cmd/qdrover

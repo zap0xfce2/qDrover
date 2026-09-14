@@ -1,0 +1,8 @@
+archive/
+bin/
+dist/
+.superpowers/
+.claude
+.serena
+docs
+CLAUDE.md
