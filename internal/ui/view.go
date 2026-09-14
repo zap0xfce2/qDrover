@@ -14,8 +14,28 @@ import (
 // einem Tag und spart Footer-Platz gegenüber einem vollen Datum.
 const sentTimestampFormat = "15:04:05"
 
-// sentStyle hebt die "zuletzt gesendet"-Zeile im Footer farbig hervor.
-var sentStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+// sentHistoryFadeColors: Farbrampe je Alters-Rang (0 = zuletzt gesendet).
+// Alle Ränge nutzen feste xterm256-Codes statt Basis-ANSI (0-15): die sind
+// terminal-theme-abhängig und unvorhersehbar. Rang 0 kräftiges Grün, Ränge
+// 1-4 verblassen Richtung Grau mit gedämpftem Helligkeits-Boden (RGB
+// 135,175,135 → 95,135,95 → 95,95,95 → 78,78,78) statt bis nahe Schwarz zu
+// fallen — im Dark-Mode-Terminal per Preview verifiziert (User-Feedback,
+// vorherige Rampen waren entweder am unteren Ende unlesbar oder nicht
+// monoton unterscheidbar). Größe an domain.MaxSentHistoryEntries gebunden,
+// da SentHistory nie mehr Einträge hält.
+var sentHistoryFadeColors = []string{"40", "71", "65", "59", "239"}
+
+// sentHistoryStyleForRank liefert den Style für einen Sendehistory-Eintrag
+// nach Alters-Rang (0 = neuester). idx wird auf den letzten Farbeintrag
+// geklemmt, falls MaxSentHistoryEntries künftig wächst, ohne dass
+// sentHistoryFadeColors nachgezogen wird.
+func sentHistoryStyleForRank(rank int) lipgloss.Style {
+	idx := rank
+	if idx >= len(sentHistoryFadeColors) {
+		idx = len(sentHistoryFadeColors) - 1
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(sentHistoryFadeColors[idx]))
+}
 
 // prefixCommandStyle hebt den persistenten Plan-/Clear-Modus-Status im Footer hervor.
 var prefixCommandStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
@@ -23,8 +43,9 @@ var prefixCommandStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 // markedStyle hebt eine per Leertaste markierte Prompt-Zeile im Board hervor.
 var markedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 
-// versionBannerStyle rendert die Startversion dezent (Grauton).
-var versionBannerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+// versionBannerStyle rendert die Startversion in Blau (fixer xterm256-Code,
+// theme-unabhängig, statt des vormaligen Basis-ANSI-Grau "8").
+var versionBannerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
 
 // withVersionBanner hängt "qDrover <version>" rechtsbündig als letzte
 // Bildschirmzeile an, solange showVersionBanner() true liefert (bis zum
@@ -88,19 +109,22 @@ func (m Model) prefixStatusLabel() string {
 // max domain.MaxSentHistoryEntries Einträge) als Log mit Zeitstempel, neueste
 // oben, älteste unten. Jeder Eintrag bleibt eine Zeile — zu lange Einträge
 // werden wie in der Prompt-Liste per truncateToWidth gekürzt statt umgebrochen,
-// man soll nur ungefähr sehen, was gesendet wurde.
+// man soll nur ungefähr sehen, was gesendet wurde. Jede Zeile wird einzeln
+// nach Alters-Rang eingefärbt (sentHistoryStyleForRank) statt den ganzen
+// Block einheitlich zu stylen — ältere Einträge verblassen sichtbar.
 func (m Model) sentHistoryBlock() string {
 	entries := m.state.Board.Session.SentHistory
 	if len(entries) == 0 {
 		return ""
 	}
 	lines := make([]string, 0, len(entries))
-	for i := len(entries) - 1; i >= 0; i-- {
+	for rank, i := 0, len(entries)-1; i >= 0; rank, i = rank+1, i-1 {
 		e := entries[i]
 		ts := time.UnixMilli(int64(e.SentAt)).Format(sentTimestampFormat)
-		lines = append(lines, truncateToWidth(fmt.Sprintf("%s — %s", ts, e.Text), m.width))
+		line := truncateToWidth(fmt.Sprintf("%s — %s", ts, e.Text), m.width)
+		lines = append(lines, sentHistoryStyleForRank(rank).Render(line))
 	}
-	return sentStyle.Render(strings.Join(lines, "\n"))
+	return strings.Join(lines, "\n")
 }
 
 // View liefert den Bildschirminhalt. Kürzt einen etwaigen trailing Newline

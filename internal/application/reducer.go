@@ -18,32 +18,35 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case EditPrompt:
 		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		b, err := state.Board.EditPrompt(a.ID, a.Content, clock.Now())
 		if err != nil {
 			return state, nil, err
 		}
 		state.Board = b
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case DeletePrompt:
 		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		b, err := state.Board.DeletePrompt(a.ID, clock.Now())
 		if err != nil {
 			return state, nil, err
 		}
 		state.Board = b
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case MovePrompt:
 		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		b, err := state.Board.MovePrompt(a.ID, a.To, clock.Now())
 		if err != nil {
 			return state, nil, err
 		}
 		state.Board = b
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case FocusPrompt:
@@ -53,30 +56,33 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case ToggleMarked:
 		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		b, err := state.Board.ToggleMarked(a.ID)
 		if err != nil {
 			return state, nil, err
 		}
 		state.Board = b
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case Undo:
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		prevPrompts, ok := state.History.Undo(state.Board.Prompts)
 		if !ok {
 			return state, nil, nil
 		}
 		state.Board.Prompts = prevPrompts
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case Redo:
+		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
 		nextPrompts, ok := state.History.Redo(state.Board.Prompts)
 		if !ok {
 			return state, nil, nil
 		}
 		state.Board.Prompts = nextPrompts
-		state = reconcileFocus(state)
+		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case TogglePlanMode:
@@ -103,11 +109,26 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 	return state, nil, fmt.Errorf("unbekannte Action %T", action)
 }
 
-// reconcileFocus setzt FocusedID auf den ersten verbleibenden Prompt, wenn es
-// nach einer Board-Mutation auf keinen lebenden Prompt mehr zeigt (z.B. nach
-// dem Löschen des fokussierten Prompts durch Senden). Bleibt das Board leer,
-// wird FocusedID nil.
-func reconcileFocus(state AppState) AppState {
+// indexOfFocused liefert den Index von focusedID in live, oder -1 wenn nicht
+// vorhanden bzw. focusedID nil ist.
+func indexOfFocused(live []domain.Prompt, focusedID *domain.PromptID) int {
+	if focusedID == nil {
+		return -1
+	}
+	for i, t := range live {
+		if t.ID == *focusedID {
+			return i
+		}
+	}
+	return -1
+}
+
+// reconcileFocus setzt FocusedID auf den Prompt, der vor der Mutation direkt
+// über dem zuletzt fokussierten stand (prevIndex-1, gegen die neue Listenlänge
+// geclampt), wenn FocusedID nach einer Board-Mutation auf keinen lebenden
+// Prompt mehr zeigt (z.B. nach dem Löschen des fokussierten Prompts durch
+// Senden). Bleibt das Board leer, wird FocusedID nil.
+func reconcileFocus(state AppState, prevIndex int) AppState {
 	if state.FocusedID == nil {
 		return state
 	}
@@ -121,7 +142,14 @@ func reconcileFocus(state AppState) AppState {
 		state.FocusedID = nil
 		return state
 	}
-	state.FocusedID = &live[0].ID
+	newIndex := prevIndex - 1
+	if newIndex < 0 {
+		newIndex = 0
+	}
+	if newIndex >= len(live) {
+		newIndex = len(live) - 1
+	}
+	state.FocusedID = &live[newIndex].ID
 	return state
 }
 

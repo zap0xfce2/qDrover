@@ -228,6 +228,80 @@ func TestReduce_DeletePrompt_FocusesFirstRemainingPromptWhenFocusedPromptDeleted
 	}
 }
 
+func TestReduce_DeletePrompt_FocusesPromptAboveWhenMiddlePromptDeleted(t *testing.T) {
+	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
+	clock := fakeClock{now: 100}
+	ids := &fakeIDGen{}
+
+	state, _, err := Reduce(state, CreatePrompt{Content: "erster"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	firstID := *state.FocusedID
+
+	state, _, err = Reduce(state, CreatePrompt{Content: "mittlerer"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	middleID := *state.FocusedID
+
+	state, _, err = Reduce(state, CreatePrompt{Content: "letzter"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	state, _, err = Reduce(state, FocusPrompt{ID: middleID}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	state, _, err = Reduce(state, DeletePrompt{ID: middleID}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	if state.FocusedID == nil || *state.FocusedID != firstID {
+		t.Fatalf("erwarte FocusedID=%v (Prompt darüber), habe %v", firstID, *state.FocusedID)
+	}
+}
+
+func TestReduce_DeletePrompt_FocusesPromptAboveWhenLastPromptDeleted(t *testing.T) {
+	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
+	clock := fakeClock{now: 100}
+	ids := &fakeIDGen{}
+
+	state, _, err := Reduce(state, CreatePrompt{Content: "erster"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	state, _, err = Reduce(state, CreatePrompt{Content: "mittlerer"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	middleID := *state.FocusedID
+
+	state, _, err = Reduce(state, CreatePrompt{Content: "letzter"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	lastID := *state.FocusedID
+
+	state, _, err = Reduce(state, FocusPrompt{ID: lastID}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	state, _, err = Reduce(state, DeletePrompt{ID: lastID}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	if state.FocusedID == nil || *state.FocusedID != middleID {
+		t.Fatalf("erwarte FocusedID=%v (Prompt darüber), habe %v", middleID, *state.FocusedID)
+	}
+}
+
 func TestReduce_TogglePlanMode_TogglesSessionField(t *testing.T) {
 	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
 	clock := fakeClock{now: 100}

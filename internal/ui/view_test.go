@@ -145,6 +145,23 @@ func TestView_BoardMode_ShowsMultipleSentHistoryEntriesInOrder(t *testing.T) {
 	}
 }
 
+func TestView_BoardMode_OlderSentHistoryEntry_IsStyledWithFadedColor(t *testing.T) {
+	m := newTestModel()
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "zweite Idee"})
+
+	out := m.View()
+	wantTimestamp := time.UnixMilli(0).Format(sentTimestampFormat)
+	newest := sentHistoryStyleForRank(0).Render(wantTimestamp + " — zweite Idee")
+	older := sentHistoryStyleForRank(1).Render(wantTimestamp + " — erste Idee")
+	if !strings.Contains(out, newest) {
+		t.Fatalf("erwarte neuesten Eintrag in Rang-0-Farbe, habe:\n%s", out)
+	}
+	if !strings.Contains(out, older) {
+		t.Fatalf("erwarte älteren Eintrag in abgeschwächter Farbe, habe:\n%s", out)
+	}
+}
+
 func TestView_EmptyBoard_ShowsSentHistoryInFooter(t *testing.T) {
 	m := newTestModel()
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
