@@ -86,6 +86,46 @@ func TestToggleMarked_ErrorsForUnknownPrompt(t *testing.T) {
 	}
 }
 
+func TestRestorePrompt_ReinsertsAtOriginalPosition(t *testing.T) {
+	b := Board{}
+	b = b.AddPrompt("t1", "a", 100)
+	b = b.AddPrompt("t2", "b", 100)
+	b = b.AddPrompt("t3", "c", 100)
+
+	b, err := b.DeletePrompt("t2", 200)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	b, err = b.RestorePrompt("t2", 300)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	live := b.LivePrompts()
+	if len(live) != 3 {
+		t.Fatalf("erwarte 3 lebende Prompts, habe %d", len(live))
+	}
+	wantOrder := []PromptID{"t1", "t2", "t3"}
+	for i, id := range wantOrder {
+		if live[i].ID != id || live[i].Position != PromptPosition(i) {
+			t.Fatalf("erwarte Reihenfolge %v mit dichten Positionen, habe %+v", wantOrder, live)
+		}
+	}
+}
+
+func TestRestorePrompt_ErrorsIfNotDeleted(t *testing.T) {
+	b := Board{}
+	b = b.AddPrompt("t1", "a", 100)
+
+	if _, err := b.RestorePrompt("t1", 200); err == nil {
+		t.Fatal("erwarte Fehler beim Restore eines noch lebenden Prompts")
+	}
+	if _, err := b.RestorePrompt("unbekannt", 200); err == nil {
+		t.Fatal("erwarte Fehler beim Restore einer unbekannten ID")
+	}
+}
+
 func TestEditPrompt_UpdatesContentAndTimestamp(t *testing.T) {
 	b := Board{}
 	b = b.AddPrompt("t1", "alt", 100)

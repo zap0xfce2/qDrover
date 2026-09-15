@@ -38,6 +38,14 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
+	case RestorePrompt:
+		b, err := state.Board.RestorePrompt(a.ID, clock.Now())
+		if err != nil {
+			return state, nil, err
+		}
+		state.Board = b
+		return state, []Effect{PersistBoard{Board: state.Board}}, nil
+
 	case MovePrompt:
 		state.History.Push(state.Board.Prompts)
 		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)

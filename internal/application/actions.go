@@ -13,6 +13,11 @@ type EditPrompt struct {
 	Content string
 }
 type DeletePrompt struct{ ID domain.PromptID }
+
+// RestorePrompt macht ein optimistisches DeletePrompt rückgängig, wenn der
+// zugehörige Herdr-Send fehlgeschlagen ist (siehe Model.beginSend). Bewusst
+// keine für den Nutzer sichtbare Undo-Aktion: löst keinen History.Push aus.
+type RestorePrompt struct{ ID domain.PromptID }
 type MovePrompt struct {
 	ID domain.PromptID
 	To domain.PromptPosition
@@ -32,6 +37,7 @@ type RecordSentText struct{ Text string }
 func (CreatePrompt) isAction()    {}
 func (EditPrompt) isAction()      {}
 func (DeletePrompt) isAction()    {}
+func (RestorePrompt) isAction()   {}
 func (MovePrompt) isAction()      {}
 func (FocusPrompt) isAction()     {}
 func (ToggleMarked) isAction()    {}

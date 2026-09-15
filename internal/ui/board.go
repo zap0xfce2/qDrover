@@ -44,17 +44,17 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		return m.dispatch(application.Redo{}), nil
 	case "s":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, PrefixCommands: m.activePrefixCommands()})
 	case "S":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
 	case "shift+up":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
 	case "shift+down":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionDown, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionDown, PrefixCommands: m.activePrefixCommands()})
 	case "shift+left":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionLeft, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionLeft, PrefixCommands: m.activePrefixCommands()})
 	case "shift+right":
-		return m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionRight, PrefixCommands: m.activePrefixCommands()}), nil
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionRight, PrefixCommands: m.activePrefixCommands()})
 	case "J":
 		return m.movePrompt(1), nil
 	case "K":

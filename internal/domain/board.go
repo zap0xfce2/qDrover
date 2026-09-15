@@ -79,6 +79,39 @@ func (b Board) DeletePrompt(id PromptID, now Timestamp) (Board, error) {
 	return b, nil
 }
 
+// RestorePrompt macht einen zuvor per DeletePrompt soft-gelöschten Prompt
+// rückgängig und setzt ihn an seine ursprüngliche Position zurück. Da
+// reindexLivePositions die Position gelöschter Prompts nie anfasst, würde ein
+// bloßes Zurücksetzen von DeletedAt zu einer Positions-Kollision mit dem
+// Prompt führen, der inzwischen die frei gewordene Position übernommen hat —
+// deshalb werden erst alle lebenden Prompts ab der alten Position um 1
+// verschoben, bevor final neu durchnummeriert wird.
+func (b Board) RestorePrompt(id PromptID, now Timestamp) (Board, error) {
+	newPrompts := append([]Prompt{}, b.Prompts...)
+	targetIdx := -1
+	for i, t := range newPrompts {
+		if t.ID == id && !t.IsLive() {
+			targetIdx = i
+			break
+		}
+	}
+	if targetIdx == -1 {
+		return b, fmt.Errorf("gelöschter Prompt %s nicht gefunden", id)
+	}
+
+	targetPos := newPrompts[targetIdx].Position
+	for i := range newPrompts {
+		if i != targetIdx && newPrompts[i].IsLive() && newPrompts[i].Position >= targetPos {
+			newPrompts[i].Position++
+		}
+	}
+	newPrompts[targetIdx].DeletedAt = nil
+	newPrompts[targetIdx].UpdatedAt = now
+
+	b.Prompts = reindexLivePositions(newPrompts)
+	return b, nil
+}
+
 func reindexLivePositions(prompts []Prompt) []Prompt {
 	liveIdx := make([]int, 0, len(prompts))
 	for i, t := range prompts {

@@ -30,20 +30,42 @@ func (nullStore) LoadSession(id domain.SessionID) (domain.Board, error) { return
 func (nullStore) SaveSession(board domain.Board) error                  { return nil }
 func (nullStore) ListSessions() ([]domain.Session, error)               { return nil, nil }
 
-// fakeHerdr lässt ResolveAndPromptWithPrefix immer erfolgreich "senden" —
-// für Tests, die einen tatsächlich erfolgreichen Send-Effect brauchen (nicht
-// nur den ErrNoPromptToSend-Fehlerpfad, der ohne HerdrGateway auskommt).
-type fakeHerdr struct{}
+// fakeHerdr lässt ResolveAndPromptWithPrefix erfolgreich "senden", außer err
+// ist gesetzt — für Tests, die einen tatsächlich erfolgreichen bzw.
+// fehlschlagenden Send-Effect brauchen (nicht nur den ErrNoPromptToSend-
+// Fehlerpfad, der ohne HerdrGateway auskommt). calls zählt die tatsächlichen
+// ResolveAndPromptWithPrefix-Aufrufe, um den Busy-Guard (beginSend) zu prüfen.
+type fakeHerdr struct {
+	err   error
+	calls int
+}
 
-func (fakeHerdr) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
+func (h *fakeHerdr) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
 	return ports.PaneInfo{ID: "pane-1"}, nil
 }
-func (fakeHerdr) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (ports.PaneInfo, error) {
+func (h *fakeHerdr) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (ports.PaneInfo, error) {
 	return ports.PaneInfo{ID: "pane-1"}, nil
 }
-func (fakeHerdr) AgentPrompt(ctx context.Context, paneID string, text string) error { return nil }
-func (fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
-	return nil
+func (h *fakeHerdr) AgentPrompt(ctx context.Context, paneID string, text string) error { return nil }
+func (h *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
+	h.calls++
+	return h.err
+}
+
+// runSend führt einen Sende-Tastendruck vollständig aus: Update(keyMsg) löst
+// beginSend aus (optimistisches Entfernen + tea.Cmd), runSend führt den
+// zurückgegebenen Cmd sofort synchron aus und speist das Ergebnis
+// (sendResultMsg) erneut durch Update — spiegelt, was Bubble Tea zur Laufzeit
+// asynchron erledigt, deterministisch im Test.
+func runSend(t *testing.T, m Model, keyMsg tea.KeyMsg) Model {
+	t.Helper()
+	updated, cmd := m.Update(keyMsg)
+	m = updated.(Model)
+	if cmd == nil {
+		return m
+	}
+	updated, _ = m.Update(cmd())
+	return updated.(Model)
 }
 
 func newTestModel() Model {
@@ -128,7 +150,7 @@ func TestBoardKey_S_RemovesPromptAfterSuccessfulSend_ShiftUp_KeepsIt(t *testing.
 		board = board.AddPrompt("t1", "erste Idee", 100)
 		board = board.AddPrompt("t2", "zweite Idee", 100)
 		state := application.AppState{Board: board, History: application.NewHistory(50)}
-		executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+		executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
 	}
 
@@ -172,6 +194,135 @@ func TestBoardKey_S_RemovesPromptAfterSuccessfulSend_ShiftUp_KeepsIt(t *testing.
 	}
 }
 
+func TestBoardKey_S_RemovesPromptImmediately_BeforeCmdRuns(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	m = updated.(Model)
+
+	if len(m.state.Board.LivePrompts()) != 0 {
+		t.Fatalf("erwarte t1 sofort entfernt, noch bevor der Herdr-Cmd läuft, habe %+v", m.state.Board.LivePrompts())
+	}
+	if cmd == nil {
+		t.Fatal("erwarte einen tea.Cmd für den Herdr-Versand im Hintergrund")
+	}
+	if !m.sending {
+		t.Fatal("erwarte sending=true, solange der Herdr-Cmd noch nicht ausgeführt wurde")
+	}
+}
+
+func TestBoardKey_S_FailedSend_RestoresPromptAtOriginalPosition(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	board = board.AddPrompt("t2", "zweite Idee", 100)
+	board = board.AddPrompt("t3", "dritte Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	sendErr := errors.New("herdr nicht erreichbar")
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{err: sendErr})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t2
+	m = updated.(Model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+
+	if !errors.Is(m.err, sendErr) {
+		t.Fatalf("erwarte Fehler %v nach fehlgeschlagenem Send, habe %v", sendErr, m.err)
+	}
+	if m.sending {
+		t.Fatal("erwarte sending=false nach abgeschlossenem (fehlgeschlagenem) Send")
+	}
+	live := m.state.Board.LivePrompts()
+	wantOrder := []domain.PromptID{"t1", "t2", "t3"}
+	if len(live) != len(wantOrder) {
+		t.Fatalf("erwarte t2 nach Fehler wiederhergestellt, habe %+v", live)
+	}
+	for i, id := range wantOrder {
+		if live[i].ID != id {
+			t.Fatalf("erwarte Reihenfolge %v nach Wiederherstellung, habe %+v", wantOrder, live)
+		}
+	}
+}
+
+func TestBoardKey_S_WhileSending_SecondPressIsNoOp(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	board = board.AddPrompt("t2", "zweite Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	herdr := &fakeHerdr{}
+	executor := application.NewExecutor(nullStore{}, herdr)
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	updated, firstCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	m = updated.(Model)
+	if firstCmd == nil {
+		t.Fatal("erwarte einen Cmd für den ersten Send")
+	}
+
+	// Zweites "s", während der erste Send noch nicht abgeschlossen ist (Cmd
+	// noch nicht ausgeführt): darf keinen weiteren Herdr-Aufruf auslösen.
+	updated, secondCmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	m = updated.(Model)
+	if secondCmd != nil {
+		t.Fatal("erwarte No-Op (kein Cmd) für 's' während ein Send bereits läuft")
+	}
+	if !m.sending {
+		t.Fatal("erwarte sending weiterhin true nach No-Op-Doppel-'s'")
+	}
+
+	// Ersten Send abschließen.
+	m.Update(firstCmd())
+	if herdr.calls != 1 {
+		t.Fatalf("erwarte genau 1 Herdr-Aufruf trotz zweimaligem 's', habe %d", herdr.calls)
+	}
+}
+
+func TestBoardKey_S_BusyFlagResetsAfterSuccessAndAfterFailure(t *testing.T) {
+	newModel := func(herdr *fakeHerdr) Model {
+		board := domain.Board{}
+		board = board.AddPrompt("t1", "erste Idee", 100)
+		board = board.AddPrompt("t2", "zweite Idee", 100)
+		state := application.AppState{Board: board, History: application.NewHistory(50)}
+		executor := application.NewExecutor(nullStore{}, herdr)
+		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	}
+
+	successHerdr := &fakeHerdr{}
+	m := newModel(successHerdr)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	if m.sending {
+		t.Fatal("erwarte sending=false nach erfolgreich abgeschlossenem Send")
+	}
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	if successHerdr.calls != 2 {
+		t.Fatalf("erwarte einen zweiten echten Herdr-Aufruf nach zurückgesetztem Busy-Flag, habe %d Aufrufe", successHerdr.calls)
+	}
+
+	failHerdr := &fakeHerdr{err: errors.New("boom")}
+	m = newModel(failHerdr)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	if m.sending {
+		t.Fatal("erwarte sending=false nach fehlgeschlagenem Send")
+	}
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	if failHerdr.calls != 2 {
+		t.Fatalf("erwarte einen zweiten echten Herdr-Aufruf nach zurückgesetztem Busy-Flag, habe %d Aufrufe", failHerdr.calls)
+	}
+}
+
 func TestBoardKey_Space_TogglesMarkedOnFocusedPrompt(t *testing.T) {
 	m := newTestModel()
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
@@ -195,7 +346,7 @@ func TestBoardKey_S_KeepsMarkedPromptAfterSend(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
@@ -222,7 +373,7 @@ func TestBoardKey_ShiftS_SendsButKeepsPromptInList(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
@@ -243,13 +394,12 @@ func TestDispatch_SuccessfulSend_RecordsSentHistory(t *testing.T) {
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
 
 	if m.err != nil {
 		t.Fatalf("unerwarteter Fehler nach 's': %v", m.err)
@@ -265,18 +415,16 @@ func TestDispatch_MultipleSends_AppendToSentHistory(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")}) // sendet + entfernt t1
-	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")}) // sendet + entfernt t1
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown}) // t1 entfernt, Fokus war nil -> jetzt auf t2
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
 
 	history := m.state.Board.Session.SentHistory
 	if len(history) != 2 || history[0].Text != "erste Idee" || history[1].Text != "zweite Idee" {
@@ -367,7 +515,7 @@ func TestBoardKey_C_ThenP_DeactivatesBothModes(t *testing.T) {
 
 func TestBoardKey_S_WithBothModesActive_SendsClearThenPlanPrefix(t *testing.T) {
 	m := newTestModel()
-	m.executor = application.NewExecutor(nullStore{}, fakeHerdr{})
+	m.executor = application.NewExecutor(nullStore{}, &fakeHerdr{})
 
 	got := m.activePrefixCommands()
 	want := []string{prefixCommandClear, prefixCommandPlan}
@@ -380,13 +528,12 @@ func TestBoardKey_S_WithPlanPrefix_SendsPrefixInAction(t *testing.T) {
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, fakeHerdr{})
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
 	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}) // Plan-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
 
 	if m.err != nil {
 		t.Fatalf("unerwarteter Fehler nach 's' mit Plan-Modus: %v", m.err)

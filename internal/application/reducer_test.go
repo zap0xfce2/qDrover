@@ -302,6 +302,40 @@ func TestReduce_DeletePrompt_FocusesPromptAboveWhenLastPromptDeleted(t *testing.
 	}
 }
 
+func TestReduce_RestorePrompt_ClearsDeletedAt_NoHistoryPush(t *testing.T) {
+	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
+	clock := fakeClock{now: 100}
+	ids := &fakeIDGen{}
+
+	state, _, err := Reduce(state, CreatePrompt{Content: "wird gelöscht und restauriert"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	id := *state.FocusedID
+
+	state, _, err = Reduce(state, DeletePrompt{ID: id}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	historyDepthAfterDelete := len(state.History.past)
+
+	state, effects, err := Reduce(state, RestorePrompt{ID: id}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+
+	live := state.Board.LivePrompts()
+	if len(live) != 1 || live[0].ID != id {
+		t.Fatalf("erwarte Prompt %v wieder unter den lebenden Prompts, habe %+v", id, live)
+	}
+	if len(state.History.past) != historyDepthAfterDelete {
+		t.Fatalf("erwarte unveränderte History-Tiefe (%d) nach RestorePrompt, habe %d", historyDepthAfterDelete, len(state.History.past))
+	}
+	if _, ok := effects[0].(PersistBoard); !ok {
+		t.Fatalf("erwarte PersistBoard-Effect, habe %T", effects[0])
+	}
+}
+
 func TestReduce_TogglePlanMode_TogglesSessionField(t *testing.T) {
 	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
 	clock := fakeClock{now: 100}

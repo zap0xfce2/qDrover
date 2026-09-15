@@ -18,12 +18,12 @@ const sentTimestampFormat = "15:04:05"
 // Alle Ränge nutzen feste xterm256-Codes statt Basis-ANSI (0-15): die sind
 // terminal-theme-abhängig und unvorhersehbar. Rang 0 kräftiges Grün, Ränge
 // 1-4 verblassen Richtung Grau mit gedämpftem Helligkeits-Boden (RGB
-// 135,175,135 → 95,135,95 → 95,95,95 → 78,78,78) statt bis nahe Schwarz zu
+// 95,175,95 → 95,135,95 → 95,95,95 → 78,78,78) statt bis nahe Schwarz zu
 // fallen — im Dark-Mode-Terminal per Preview verifiziert (User-Feedback,
 // vorherige Rampen waren entweder am unteren Ende unlesbar oder nicht
 // monoton unterscheidbar). Größe an domain.MaxSentHistoryEntries gebunden,
 // da SentHistory nie mehr Einträge hält.
-var sentHistoryFadeColors = []string{"40", "71", "65", "59", "239"}
+var sentHistoryFadeColors = []string{"34", "71", "65", "59", "239"}
 
 // sentHistoryStyleForRank liefert den Style für einen Sendehistory-Eintrag
 // nach Alters-Rang (0 = neuester). idx wird auf den letzten Farbeintrag
