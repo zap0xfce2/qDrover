@@ -46,13 +46,6 @@ type fakeHerdr struct {
 	lastPrefixCommands []string
 }
 
-func (h *fakeHerdr) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
-	return ports.PaneInfo{ID: "pane-1"}, nil
-}
-func (h *fakeHerdr) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (ports.PaneInfo, error) {
-	return ports.PaneInfo{ID: "pane-1"}, nil
-}
-func (h *fakeHerdr) AgentPrompt(ctx context.Context, paneID string, text string) error { return nil }
 func (h *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
 	h.calls++
 	h.lastText = text

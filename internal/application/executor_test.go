@@ -9,25 +9,11 @@ import (
 )
 
 type fakeHerdr struct {
-	current        ports.PaneInfo
-	neighbor       ports.PaneInfo
+	current        string
+	neighbor       string
 	promptedTo     string
 	promptedTxt    string
 	calledPrefixes []string
-}
-
-func (f *fakeHerdr) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
-	return f.current, nil
-}
-
-func (f *fakeHerdr) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (ports.PaneInfo, error) {
-	return f.neighbor, nil
-}
-
-func (f *fakeHerdr) AgentPrompt(ctx context.Context, paneID string, text string) error {
-	f.promptedTo = paneID
-	f.promptedTxt = text
-	return nil
 }
 
 func (f *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
@@ -36,14 +22,16 @@ func (f *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction po
 	if direction != "" {
 		target = f.neighbor
 	}
-	return f.AgentPrompt(ctx, target.ID, text)
+	f.promptedTo = target
+	f.promptedTxt = text
+	return nil
 }
 
 func TestExecutor_SendDispatch_DiscoversNeighborThenSendsPrompt(t *testing.T) {
 	store := newFakeStore()
 	herdr := &fakeHerdr{
-		current:  ports.PaneInfo{ID: "pane-self"},
-		neighbor: ports.PaneInfo{ID: "pane-neighbor"},
+		current:  "pane-self",
+		neighbor: "pane-neighbor",
 	}
 	executor := NewExecutor(store, herdr)
 
@@ -63,7 +51,7 @@ func TestExecutor_SendDispatch_DiscoversNeighborThenSendsPrompt(t *testing.T) {
 
 func TestExecutor_SendDispatch_WithPrefixCommands_PassesPrefixesToGateway(t *testing.T) {
 	store := newFakeStore()
-	herdr := &fakeHerdr{current: ports.PaneInfo{ID: "pane-self"}}
+	herdr := &fakeHerdr{current: "pane-self"}
 	executor := NewExecutor(store, herdr)
 
 	err := executor.Execute(context.Background(), []Effect{
@@ -80,7 +68,7 @@ func TestExecutor_SendDispatch_WithPrefixCommands_PassesPrefixesToGateway(t *tes
 
 func TestExecutor_SendDispatch_WithoutPrefixCommands_PassesEmptyPrefixesToGateway(t *testing.T) {
 	store := newFakeStore()
-	herdr := &fakeHerdr{current: ports.PaneInfo{ID: "pane-self"}}
+	herdr := &fakeHerdr{current: "pane-self"}
 	executor := NewExecutor(store, herdr)
 
 	err := executor.Execute(context.Background(), []Effect{

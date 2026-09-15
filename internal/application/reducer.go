@@ -108,12 +108,12 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case SendSelectionToPane:
-		text, ids, err := collectTextToSend(state)
+		text, id, err := collectTextToSend(state)
 		if err != nil {
 			return state, nil, err
 		}
 		text = a.TextPrefix + text
-		return state, []Effect{SendDispatch{Direction: a.Direction, Text: text, PromptIDs: ids, PrefixCommands: a.PrefixCommands}}, nil
+		return state, []Effect{SendDispatch{Direction: a.Direction, Text: text, PromptID: id, PrefixCommands: a.PrefixCommands}}, nil
 	}
 	return state, nil, fmt.Errorf("unbekannte Action %T", action)
 }
@@ -166,14 +166,14 @@ var ErrNoPromptToSend = fmt.Errorf("kein Prompt ausgewählt oder fokussiert")
 
 // collectTextToSend liefert den Inhalt des fokussierten Prompts. Navigieren
 // zu einem Prompt (FocusPrompt) ist die einzige "Auswahl", die es gibt.
-func collectTextToSend(state AppState) (string, []domain.PromptID, error) {
+func collectTextToSend(state AppState) (string, domain.PromptID, error) {
 	if state.FocusedID == nil {
-		return "", nil, ErrNoPromptToSend
+		return "", "", ErrNoPromptToSend
 	}
 	for _, t := range state.Board.LivePrompts() {
 		if t.ID == *state.FocusedID {
-			return t.Content, []domain.PromptID{t.ID}, nil
+			return t.Content, t.ID, nil
 		}
 	}
-	return "", nil, ErrNoPromptToSend
+	return "", "", ErrNoPromptToSend
 }

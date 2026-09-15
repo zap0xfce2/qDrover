@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 
 	"qdrover/internal/adapters/clipboard"
 	"qdrover/internal/adapters/herdr"
@@ -19,18 +18,6 @@ import (
 )
 
 const undoHistoryDepth = 50
-
-func newRootCmd() *cobra.Command {
-	root := &cobra.Command{
-		Use:   "qdrover",
-		Short: "qDrover — Board mit Herdr-Dispatch-Sender",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTUI()
-		},
-	}
-	root.AddCommand(newSendCmd())
-	return root
-}
 
 // firstLivePromptID liefert die ID des ersten lebenden Prompts, damit beim
 // Programmstart direkt ein bestehender Prompt fokussiert ist statt nichts.

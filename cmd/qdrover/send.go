@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"strings"
 	"time"
-
-	"github.com/spf13/cobra"
 
 	"qdrover/internal/adapters/herdr"
 	"qdrover/internal/ports"
@@ -31,25 +30,21 @@ func resolveQuery(args []string, stdin io.Reader) (string, error) {
 	return text, nil
 }
 
-func newSendCmd() *cobra.Command {
-	var direction string
-
-	cmd := &cobra.Command{
-		Use:   "send [query]",
-		Short: "Sendet einen Dispatch an eine Herdr-Pane",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			text, err := resolveQuery(args, cmd.InOrStdin())
-			if err != nil {
-				return err
-			}
-
-			gateway := herdr.NewGateway()
-			ctx, cancel := context.WithTimeout(context.Background(), herdrCallTimeout)
-			defer cancel()
-
-			return gateway.ResolveAndPromptWithPrefix(ctx, ports.Direction(direction), nil, text)
-		},
+func runSend(args []string, stdin io.Reader) error {
+	fs := flag.NewFlagSet("send", flag.ContinueOnError)
+	direction := fs.String("direction", "", "up|down|left|right")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	cmd.Flags().StringVar(&direction, "direction", "", "up|down|left|right")
-	return cmd
+
+	text, err := resolveQuery(fs.Args(), stdin)
+	if err != nil {
+		return err
+	}
+
+	gateway := herdr.NewGateway()
+	ctx, cancel := context.WithTimeout(context.Background(), herdrCallTimeout)
+	defer cancel()
+
+	return gateway.ResolveAndPromptWithPrefix(ctx, ports.Direction(*direction), nil, text)
 }

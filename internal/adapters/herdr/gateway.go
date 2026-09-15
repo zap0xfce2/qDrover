@@ -72,46 +72,46 @@ type neighborPaneResponse struct {
 	Error *rpcError `json:"error,omitempty"`
 }
 
-func (g *Gateway) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
+func (g *Gateway) CurrentPane(ctx context.Context) (string, error) {
 	if !herdrEnabled() {
-		return ports.PaneInfo{}, fmt.Errorf("herdr ist deaktiviert (HERDR_ENV=1 setzen)")
+		return "", fmt.Errorf("herdr ist deaktiviert (HERDR_ENV=1 setzen)")
 	}
 	out, err := g.runner.Run(ctx, "pane", "current")
 	if err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane current: %w", err)
+		return "", fmt.Errorf("herdr pane current: %w", err)
 	}
 	var resp currentPaneResponse
 	if err := json.Unmarshal(out, &resp); err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("pane current parsen: %w", err)
+		return "", fmt.Errorf("pane current parsen: %w", err)
 	}
 	if resp.Error != nil {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane current: %s (%s)", resp.Error.Message, resp.Error.Code)
+		return "", fmt.Errorf("herdr pane current: %s (%s)", resp.Error.Message, resp.Error.Code)
 	}
 	if resp.Result == nil || resp.Result.Pane.PaneID == "" {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane current: leere pane-id in antwort")
+		return "", fmt.Errorf("herdr pane current: leere pane-id in antwort")
 	}
-	return ports.PaneInfo{ID: resp.Result.Pane.PaneID}, nil
+	return resp.Result.Pane.PaneID, nil
 }
 
-func (g *Gateway) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (ports.PaneInfo, error) {
+func (g *Gateway) NeighborPane(ctx context.Context, paneID string, direction ports.Direction) (string, error) {
 	if !herdrEnabled() {
-		return ports.PaneInfo{}, fmt.Errorf("herdr ist deaktiviert (HERDR_ENV=1 setzen)")
+		return "", fmt.Errorf("herdr ist deaktiviert (HERDR_ENV=1 setzen)")
 	}
 	out, err := g.runner.Run(ctx, "pane", "neighbor", "--pane", paneID, "--direction", string(direction))
 	if err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane neighbor: %w", err)
+		return "", fmt.Errorf("herdr pane neighbor: %w", err)
 	}
 	var resp neighborPaneResponse
 	if err := json.Unmarshal(out, &resp); err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("pane neighbor parsen: %w", err)
+		return "", fmt.Errorf("pane neighbor parsen: %w", err)
 	}
 	if resp.Error != nil {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane neighbor: %s (%s)", resp.Error.Message, resp.Error.Code)
+		return "", fmt.Errorf("herdr pane neighbor: %s (%s)", resp.Error.Message, resp.Error.Code)
 	}
 	if resp.Result == nil || resp.Result.Neighbor.NeighborPaneID == "" {
-		return ports.PaneInfo{}, fmt.Errorf("herdr pane neighbor: leere pane-id in antwort")
+		return "", fmt.Errorf("herdr pane neighbor: leere pane-id in antwort")
 	}
-	return ports.PaneInfo{ID: resp.Result.Neighbor.NeighborPaneID}, nil
+	return resp.Result.Neighbor.NeighborPaneID, nil
 }
 
 func (g *Gateway) AgentPrompt(ctx context.Context, paneID string, text string) error {
@@ -126,17 +126,17 @@ func (g *Gateway) AgentPrompt(ctx context.Context, paneID string, text string) e
 
 // resolveTargetPane ermittelt die Ziel-Pane: aktuelle Pane, optional deren
 // Nachbar in direction. Gemeinsame Logik für ResolveAndPromptWithPrefix.
-func (g *Gateway) resolveTargetPane(ctx context.Context, direction ports.Direction) (ports.PaneInfo, error) {
+func (g *Gateway) resolveTargetPane(ctx context.Context, direction ports.Direction) (string, error) {
 	current, err := g.CurrentPane(ctx)
 	if err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("aktuelle pane ermitteln: %w", err)
+		return "", fmt.Errorf("aktuelle pane ermitteln: %w", err)
 	}
 	if direction == "" {
 		return current, nil
 	}
-	target, err := g.NeighborPane(ctx, current.ID, direction)
+	target, err := g.NeighborPane(ctx, current, direction)
 	if err != nil {
-		return ports.PaneInfo{}, fmt.Errorf("nachbar-pane ermitteln: %w", err)
+		return "", fmt.Errorf("nachbar-pane ermitteln: %w", err)
 	}
 	return target, nil
 }
@@ -156,7 +156,7 @@ func (g *Gateway) ResolveAndPromptWithPrefix(ctx context.Context, direction port
 		if prefix == "" {
 			continue
 		}
-		if err := g.AgentPrompt(ctx, target.ID, prefix); err != nil {
+		if err := g.AgentPrompt(ctx, target, prefix); err != nil {
 			return fmt.Errorf("präfix-kommando senden: %w", err)
 		}
 		select {
@@ -165,5 +165,5 @@ func (g *Gateway) ResolveAndPromptWithPrefix(ctx context.Context, direction port
 			return ctx.Err()
 		}
 	}
-	return g.AgentPrompt(ctx, target.ID, text)
+	return g.AgentPrompt(ctx, target, text)
 }

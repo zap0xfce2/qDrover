@@ -31,8 +31,8 @@ func TestGateway_CurrentPane_ParsesPaneID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
-	if pane.ID != "pane-42" {
-		t.Fatalf("erwarte pane-42, habe %q", pane.ID)
+	if pane != "pane-42" {
+		t.Fatalf("erwarte pane-42, habe %q", pane)
 	}
 }
 
@@ -102,8 +102,8 @@ func TestGateway_NeighborPane_ParsesNeighborPaneID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
-	if pane.ID != "pane-42" {
-		t.Fatalf("erwarte pane-42, habe %q", pane.ID)
+	if pane != "pane-42" {
+		t.Fatalf("erwarte pane-42, habe %q", pane)
 	}
 }
 
@@ -122,8 +122,8 @@ func TestGateway_NeighborPane_ParsesRealHerdrPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
-	if pane.ID != "w5:p1" {
-		t.Fatalf("erwarte w5:p1, habe %q", pane.ID)
+	if pane != "w5:p1" {
+		t.Fatalf("erwarte w5:p1, habe %q", pane)
 	}
 }
 

@@ -96,13 +96,7 @@ func (m Model) movePrompt(delta int) Model {
 		return m
 	}
 	live := m.state.Board.LivePrompts()
-	idx := 0
-	for i, t := range live {
-		if t.ID == *m.state.FocusedID {
-			idx = i
-			break
-		}
-	}
+	idx := focusedIndex(live, m.state.FocusedID)
 	newPos := idx + delta
 	if newPos < 0 {
 		newPos = 0
@@ -137,13 +131,7 @@ func (m Model) moveFocus(delta int) Model {
 	if m.state.FocusedID == nil {
 		return m.dispatch(application.FocusPrompt{ID: live[0].ID})
 	}
-	idx := 0
-	for i, t := range live {
-		if t.ID == *m.state.FocusedID {
-			idx = i
-			break
-		}
-	}
+	idx := focusedIndex(live, m.state.FocusedID)
 	idx += delta
 	if idx < 0 {
 		idx = 0
@@ -155,7 +143,7 @@ func (m Model) moveFocus(delta int) Model {
 }
 
 // toggleMarked schaltet die Markierung des fokussierten Prompts um (Leertaste).
-// Markierte Prompts überstimmen RemoveAfterSend, siehe removeSentPromptsIfRequested.
+// Markierte Prompts überstimmen RemoveAfterSend, siehe Model.beginSend (internal/ui/model.go).
 func (m Model) toggleMarked() Model {
 	if m.state.FocusedID == nil {
 		return m

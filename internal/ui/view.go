@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"qdrover/internal/domain"
 )
@@ -268,16 +269,13 @@ func focusedIndex(live []domain.Prompt, focusedID *domain.PromptID) int {
 const editCursor = "▋"
 
 // truncateToWidth kürzt s auf width Runen und hängt "…" an, falls gekürzt wurde.
-// width <= 0 bedeutet "kein WindowSizeMsg empfangen" — dann unverändert zurückgeben.
+// width <= 0 bedeutet "kein WindowSizeMsg empfangen" — dann unverändert
+// zurückgeben (ansi.Truncate(s, 0, ...) würde sonst "" liefern).
 func truncateToWidth(s string, width int) string {
 	if width <= 0 {
 		return s
 	}
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s
-	}
-	return string(runes[:width-1]) + "…"
+	return ansi.Truncate(s, width, "…")
 }
 
 // wrapToWidth bricht s bei width Runen pro Zeile um (Wortumbruch, keine
@@ -289,66 +287,7 @@ func wrapToWidth(s string, width int) string {
 	if width <= 0 {
 		return s
 	}
-	// strings.Fields (in wrapParagraph) verschluckt folgende Leerzeichen —
-	// die müssen wir separat sichern, sonst "verschwindet" ein per Leertaste
-	// getippter Space am Ende des Editor-Puffers (genau da steht der Cursor).
-	trimmed := strings.TrimRight(s, " ")
-	trailingSpaces := s[len(trimmed):]
-	paragraphs := strings.Split(trimmed, "\n")
-	wrapped := make([]string, 0, len(paragraphs))
-	for _, p := range paragraphs {
-		wrapped = append(wrapped, wrapParagraph(p, width)...)
-	}
-	return strings.Join(wrapped, "\n") + trailingSpaces
-}
-
-// wrapParagraph wortumbricht einen einzelnen Absatz (ohne \n) auf width Runen.
-func wrapParagraph(p string, width int) []string {
-	words := strings.Fields(p)
-	if len(words) == 0 {
-		return []string{p}
-	}
-
-	var lines []string
-	current := ""
-	for _, word := range words {
-		for _, chunk := range hardWrapWord(word, width) {
-			if current == "" {
-				current = chunk
-				continue
-			}
-			if len([]rune(current))+1+len([]rune(chunk)) <= width {
-				current += " " + chunk
-			} else {
-				lines = append(lines, current)
-				current = chunk
-			}
-		}
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
-}
-
-// hardWrapWord bricht ein einzelnes Wort, das selbst länger als width ist,
-// hart in width-Rune-Stücke (verhindert Endlos-Overflow bei z. B. langen
-// URLs ohne Leerzeichen). Kürzere Wörter kommen unverändert als einziges
-// Element zurück.
-func hardWrapWord(word string, width int) []string {
-	runes := []rune(word)
-	if len(runes) <= width {
-		return []string{word}
-	}
-	var chunks []string
-	for len(runes) > width {
-		chunks = append(chunks, string(runes[:width]))
-		runes = runes[width:]
-	}
-	if len(runes) > 0 {
-		chunks = append(chunks, string(runes))
-	}
-	return chunks
+	return ansi.Wrap(s, width, "")
 }
 
 // anchoredWindow liefert den [start, end)-Ausschnitt eines vim-artig

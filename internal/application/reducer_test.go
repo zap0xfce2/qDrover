@@ -156,15 +156,15 @@ func TestCollectTextToSend_FailsWhenFocusedPromptNoLongerExists(t *testing.T) {
 		FocusedID: &deadID,
 	}
 
-	text, ids, err := collectTextToSend(state)
+	text, id, err := collectTextToSend(state)
 	if err == nil {
 		t.Fatal("erwarte Fehler, wenn der fokussierte Prompt nicht mehr lebt")
 	}
 	if text != "" {
 		t.Fatalf("erwarte leeren Text bei Fehler, habe %q", text)
 	}
-	if ids != nil {
-		t.Fatalf("erwarte keine IDs bei Fehler, habe %v", ids)
+	if id != "" {
+		t.Fatalf("erwarte keine ID bei Fehler, habe %v", id)
 	}
 }
 

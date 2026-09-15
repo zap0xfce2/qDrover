@@ -168,10 +168,7 @@ func (m Model) beginSend(action application.SendSelectionToPane) (Model, tea.Cmd
 			if !ok {
 				continue
 			}
-			for _, id := range dispatchEffect.PromptIDs {
-				if m.isMarked(id) {
-					continue
-				}
+			if id := dispatchEffect.PromptID; id != "" && !m.isMarked(id) {
 				m = m.dispatch(application.DeletePrompt{ID: id})
 				removedIDs = append(removedIDs, id)
 			}

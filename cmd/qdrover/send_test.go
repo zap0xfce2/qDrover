@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
@@ -39,16 +38,18 @@ func TestResolveQuery_FailsWithoutArgsOrStdin(t *testing.T) {
 func TestSendCmd_FailsFastWhenHerdrDisabled(t *testing.T) {
 	t.Setenv("HERDR_ENV", "")
 
-	cmd := newSendCmd()
-	cmd.SetArgs([]string{"hallo welt"})
-	cmd.SetOut(&bytes.Buffer{})
-	cmd.SetErr(&bytes.Buffer{})
-
-	err := cmd.Execute()
+	err := runSend([]string{"hallo welt"}, strings.NewReader(""))
 	if err == nil {
 		t.Fatal("erwarte Fehler, wenn HERDR_ENV nicht gesetzt ist")
 	}
 	if !strings.Contains(err.Error(), "herdr ist deaktiviert") {
 		t.Fatalf("erwarte Fehlermeldung über deaktiviertes herdr, habe %q", err.Error())
+	}
+}
+
+func TestRun_UnknownSubcommand_ReturnsError(t *testing.T) {
+	err := run([]string{"bogus"})
+	if err == nil {
+		t.Fatal("erwarte Fehler bei unbekanntem Subcommand")
 	}
 }

@@ -14,7 +14,7 @@ func (PersistBoard) isEffect() {}
 type SendDispatch struct {
 	Direction      ports.Direction
 	Text           string
-	PromptIDs      []domain.PromptID // welche Prompts in Text eingeflossen sind
+	PromptID       domain.PromptID // welcher Prompt in Text eingeflossen ist
 	PrefixCommands []string          // werden vor Text an die Ziel-Pane gesendet, z.B. ["/clear", "/plan"]
 }
 
