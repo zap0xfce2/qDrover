@@ -242,8 +242,7 @@ func (m Model) syncScroll() Model {
 		return m
 	}
 	live := m.state.Board.LivePrompts()
-	maxVisible := m.height - m.footerHeight()
-	m.listScrollStart, _ = anchoredWindow(len(live), focusedIndex(live, m.state.FocusedID), maxVisible, m.listScrollStart)
+	m.listScrollStart, _ = anchoredWindow(len(live), focusedIndex(live, m.state.FocusedID), m.maxVisiblePrompts(), m.listScrollStart)
 	return m
 }
 

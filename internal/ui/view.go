@@ -152,6 +152,11 @@ func (m Model) renderView() string {
 	if len(live) == 0 {
 		hint := "[i] neuer Prompt, [q] beenden, [h] Hilfe"
 		if footer != "" {
+			if m.height > 0 {
+				if padding := m.maxVisiblePrompts() - 1; padding > 0 {
+					hint += strings.Repeat("\n", padding)
+				}
+			}
 			hint += "\n" + footer
 		}
 		return m.withVersionBanner(hint)
@@ -173,6 +178,11 @@ func (m Model) renderView() string {
 		fmt.Fprintln(&b, line)
 	}
 	if footer != "" {
+		if m.height > 0 {
+			if padding := m.maxVisiblePrompts() - (end - start); padding > 0 {
+				b.WriteString(strings.Repeat("\n", padding))
+			}
+		}
 		fmt.Fprintf(&b, "%s\n", footer)
 	}
 	// TrimSuffix vor withVersionBanner (nicht erst im äußeren View()):
@@ -216,6 +226,19 @@ func (m Model) footerHeight() int {
 	return strings.Count(footer, "\n") + 1
 }
 
+// maxVisiblePrompts liefert die für Promptzeilen verbleibende Höhe
+// (Terminalhöhe minus Footer), auf 0 geklemmt — der Footer kann bei sehr
+// kleinem Terminal allein schon >= m.height sein, negative Werte dürfen
+// weder an anchoredWindow noch an Padding-Berechnungen durchsickern. Nur
+// sinnvoll, wenn m.height > 0 — Aufrufer prüfen das selbst.
+func (m Model) maxVisiblePrompts() int {
+	v := m.height - m.footerHeight()
+	if v < 0 {
+		return 0
+	}
+	return v
+}
+
 // visiblePromptRange ermittelt die reservierte Höhe für Footer-Zeilen und
 // liefert das verankerte Sichtfenster (siehe anchoredWindow). Rein lesend,
 // mutiert m.listScrollStart nicht — die Fortschreibung übernimmt
@@ -224,8 +247,7 @@ func (m Model) visiblePromptRange(live []domain.Prompt) (int, int) {
 	if m.height <= 0 {
 		return 0, len(live)
 	}
-	maxVisible := m.height - m.footerHeight()
-	return anchoredWindow(len(live), focusedIndex(live, m.state.FocusedID), maxVisible, m.listScrollStart)
+	return anchoredWindow(len(live), focusedIndex(live, m.state.FocusedID), m.maxVisiblePrompts(), m.listScrollStart)
 }
 
 // focusedIndex liefert den Index von focusedID in live, -1 falls nil oder

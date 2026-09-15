@@ -524,6 +524,78 @@ func TestSyncScroll_FocusFirst_MakesFirstPromptVisibleAgain(t *testing.T) {
 	}
 }
 
+func TestView_BoardMode_FewPromptsWithHeight_FooterPinnedToBottom(t *testing.T) {
+	m := newTestModel()
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = updated.(Model)
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
+
+	out := m.View()
+	lines := strings.Split(out, "\n")
+	if len(lines) != m.height {
+		t.Fatalf("erwarte genau %d Zeilen (Footer am unteren Rand statt Lücke), habe %d:\n%q", m.height, len(lines), out)
+	}
+	wantTimestamp := time.UnixMilli(0).Format(sentTimestampFormat)
+	if !strings.Contains(lines[len(lines)-2], wantTimestamp+" — gesendet") {
+		t.Fatalf("erwarte Sendehistory in der vorletzten Zeile, habe:\n%q", out)
+	}
+	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
+		t.Fatalf("erwarte Statuszeile in der letzten Zeile, habe:\n%q", out)
+	}
+}
+
+func TestView_EmptyBoard_HeightSet_PaddingBetweenHintAndFooter(t *testing.T) {
+	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = updated.(Model)
+
+	out := m.View()
+	lines := strings.Split(out, "\n")
+	if len(lines) != m.height {
+		t.Fatalf("erwarte genau %d Zeilen bei leerem Board mit Footer, habe %d:\n%q", m.height, len(lines), out)
+	}
+	if !strings.Contains(lines[0], "[i] neuer Prompt") {
+		t.Fatalf("erwarte Hint in erster Zeile, habe:\n%q", out)
+	}
+	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
+		t.Fatalf("erwarte Statuszeile in letzter Zeile, habe:\n%q", out)
+	}
+}
+
+func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
+	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{})
+	planOff, clearOff := false, false
+	m.state.Board.Session.PlanModeActive = &planOff
+	m.state.Board.Session.ClearModeActive = &clearOff
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = updated.(Model)
+
+	out := m.View()
+	if out != "[i] neuer Prompt, [q] beenden, [h] Hilfe" {
+		t.Fatalf("erwarte reinen Hint ohne Padding bei leerem Footer, habe:\n%q", out)
+	}
+}
+
+func TestMaxVisiblePrompts_ClampsAtZero(t *testing.T) {
+	m := newTestModel()
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
+	m = updated.(Model)
+
+	if got := m.maxVisiblePrompts(); got != 0 {
+		t.Fatalf("erwarte 0 wenn Footer allein schon >= Höhe, habe %d", got)
+	}
+}
+
+func TestView_BoardMode_TinyTerminal_FooterLargerThanHeight_NoPanic(t *testing.T) {
+	m := newTestModel()
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
+	m = updated.(Model)
+
+	m.View() // darf nicht paniken
+}
+
 func emptyState() application.AppState {
 	return application.AppState{Board: domain.Board{}, History: application.NewHistory(50)}
 }
