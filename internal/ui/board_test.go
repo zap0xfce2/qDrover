@@ -38,6 +38,12 @@ func (nullStore) ListSessions() ([]domain.Session, error)               { return
 type fakeHerdr struct {
 	err   error
 	calls int
+	// lastText/lastPrefixCommands: Argumente des zuletzt beobachteten
+	// ResolveAndPromptWithPrefix-Aufrufs, für Tests die genau prüfen wollen,
+	// was tatsächlich gesendet würde (z. B. /subtask-Präfix, Plan-/Clear-
+	// Unabhängigkeit).
+	lastText           string
+	lastPrefixCommands []string
 }
 
 func (h *fakeHerdr) CurrentPane(ctx context.Context) (ports.PaneInfo, error) {
@@ -49,7 +55,28 @@ func (h *fakeHerdr) NeighborPane(ctx context.Context, paneID string, direction p
 func (h *fakeHerdr) AgentPrompt(ctx context.Context, paneID string, text string) error { return nil }
 func (h *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
 	h.calls++
+	h.lastText = text
+	h.lastPrefixCommands = prefixCommands
 	return h.err
+}
+
+// fakeClipboard simuliert die System-Zwischenablage: ReadAll liefert readContent
+// (bzw. readErr), WriteAll zählt Aufrufe und merkt sich lastWritten (bzw.
+// liefert writeErr) — für Tests der Tasten V (Paste) und C (Copy).
+type fakeClipboard struct {
+	readContent string
+	readErr     error
+	writeErr    error
+	writeCalls  int
+	lastWritten string
+}
+
+func (c *fakeClipboard) ReadAll() (string, error) { return c.readContent, c.readErr }
+
+func (c *fakeClipboard) WriteAll(text string) error {
+	c.writeCalls++
+	c.lastWritten = text
+	return c.writeErr
 }
 
 // runSend führt einen Sende-Tastendruck vollständig aus: Update(keyMsg) löst
@@ -74,7 +101,7 @@ func newTestModel() Model {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, nil)
-	return New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 }
 
 func TestBoardKey_Down_MovesFocusToNextPrompt(t *testing.T) {
@@ -114,7 +141,7 @@ func TestBoardKey_G_FocusesLastPrompt_g_FocusesFirstPrompt(t *testing.T) {
 	board = board.AddPrompt("t3", "drei", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, nil)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
 	next := updated.(Model)
@@ -151,7 +178,7 @@ func TestBoardKey_S_RemovesPromptAfterSuccessfulSend_ShiftUp_KeepsIt(t *testing.
 		board = board.AddPrompt("t2", "zweite Idee", 100)
 		state := application.AppState{Board: board, History: application.NewHistory(50)}
 		executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	}
 
 	// "s": fokussierten Prompt senden -> nach Erfolg aus dem Board entfernt.
@@ -199,7 +226,7 @@ func TestBoardKey_S_RemovesPromptImmediately_BeforeCmdRuns(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -225,7 +252,7 @@ func TestBoardKey_S_FailedSend_RestoresPromptAtOriginalPosition(t *testing.T) {
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	sendErr := errors.New("herdr nicht erreichbar")
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{err: sendErr})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t2
 	m = updated.(Model)
@@ -258,7 +285,7 @@ func TestBoardKey_S_WhileSending_SecondPressIsNoOp(t *testing.T) {
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	herdr := &fakeHerdr{}
 	executor := application.NewExecutor(nullStore{}, herdr)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -293,7 +320,7 @@ func TestBoardKey_S_BusyFlagResetsAfterSuccessAndAfterFailure(t *testing.T) {
 		board = board.AddPrompt("t2", "zweite Idee", 100)
 		state := application.AppState{Board: board, History: application.NewHistory(50)}
 		executor := application.NewExecutor(nullStore{}, herdr)
-		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	}
 
 	successHerdr := &fakeHerdr{}
@@ -347,7 +374,7 @@ func TestBoardKey_S_KeepsMarkedPromptAfterSend(t *testing.T) {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -368,25 +395,74 @@ func TestBoardKey_S_KeepsMarkedPromptAfterSend(t *testing.T) {
 	}
 }
 
-func TestBoardKey_ShiftS_SendsButKeepsPromptInList(t *testing.T) {
+func TestBoardKey_ShiftS_SendsWithSubtaskPrefixAndRemovesPrompt(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	board = board.AddPrompt("t2", "zweite Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	herdr := &fakeHerdr{}
+	executor := application.NewExecutor(nullStore{}, herdr)
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach 'S': %v", m.err)
+	}
+	if herdr.lastText != "/subtask erste Idee" {
+		t.Fatalf("erwarte gesendeten Text '/subtask erste Idee', habe %q", herdr.lastText)
+	}
+	live := m.state.Board.LivePrompts()
+	if len(live) != 1 || live[0].ID != domain.PromptID("t2") {
+		t.Fatalf("erwarte nur noch t2 nach 'S' (Prompt wird entfernt), habe %+v", live)
+	}
+}
+
+func TestBoardKey_ShiftS_KeepsMarkedPromptAfterSend(t *testing.T) {
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace}) // t1 markieren
 	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
 
 	if m.err != nil {
-		t.Fatalf("unerwarteter Fehler nach 'S': %v", m.err)
+		t.Fatalf("unerwarteter Fehler nach 'S' auf markierten Prompt: %v", m.err)
 	}
 	live := m.state.Board.LivePrompts()
 	if len(live) != 2 {
-		t.Fatalf("erwarte weiterhin 2 Prompts nach 'S' (kein Entfernen), habe %d", len(live))
+		t.Fatalf("erwarte weiterhin 2 Prompts (markierter Prompt bleibt nach 'S'), habe %d", len(live))
+	}
+	if !live[0].Marked {
+		t.Fatal("erwarte t1 weiterhin markiert nach 'S'")
+	}
+}
+
+func TestBoardKey_ShiftS_IgnoresActivePlanAndClearMode(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	herdr := &fakeHerdr{}
+	executor := application.NewExecutor(nullStore{}, herdr)
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-/Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+
+	if len(herdr.lastPrefixCommands) != 0 {
+		t.Fatalf("erwarte keine PrefixCommands bei 'S' trotz aktivem Plan-/Clear-Modus, habe %v", herdr.lastPrefixCommands)
+	}
+	if herdr.lastText != "/subtask erste Idee" {
+		t.Fatalf("erwarte gesendeten Text '/subtask erste Idee', habe %q", herdr.lastText)
 	}
 }
 
@@ -395,7 +471,7 @@ func TestDispatch_SuccessfulSend_RecordsSentHistory(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -416,7 +492,7 @@ func TestDispatch_MultipleSends_AppendToSentHistory(t *testing.T) {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -529,7 +605,7 @@ func TestBoardKey_S_WithPlanPrefix_SendsPrefixInAction(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}) // Plan-Modus per Default an
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -557,5 +633,95 @@ func TestBoardKey_H_OpensHelp_AnyKeyClosesIt(t *testing.T) {
 	next = updated.(Model)
 	if next.mode != modeBoard {
 		t.Fatalf("erwarte modeBoard nach beliebiger Taste, habe %v", next.mode)
+	}
+}
+
+func TestBoardKey_ShiftV_PastesClipboardAsNewPromptInEditMode(t *testing.T) {
+	m := newTestModel()
+	m.clipboard = &fakeClipboard{readContent: "aus Zwischenablage"}
+	before := len(m.state.Board.LivePrompts())
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("V")})
+	m = updated.(Model)
+
+	if m.mode != modeEdit {
+		t.Fatalf("erwarte modeEdit nach 'V', habe %v", m.mode)
+	}
+	if m.editBuf != "aus Zwischenablage" {
+		t.Fatalf("erwarte vorbefüllten editBuf mit Zwischenablageninhalt, habe %q", m.editBuf)
+	}
+	if !m.editingNewPrompt {
+		t.Fatal("erwarte editingNewPrompt=true nach 'V'")
+	}
+	if len(m.state.Board.LivePrompts()) != before+1 {
+		t.Fatalf("erwarte einen zusätzlichen Prompt nach 'V', habe %d (vorher %d)", len(m.state.Board.LivePrompts()), before)
+	}
+}
+
+func TestBoardKey_ShiftV_ClipboardErrorSetsErrAndCreatesNoPrompt(t *testing.T) {
+	m := newTestModel()
+	m.clipboard = &fakeClipboard{readErr: errors.New("kein Clipboard-Tool installiert")}
+	before := len(m.state.Board.LivePrompts())
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("V")})
+	m = updated.(Model)
+
+	if m.err == nil {
+		t.Fatal("erwarte gesetzten Fehler nach 'V' mit fehlschlagendem Clipboard-Read")
+	}
+	if m.mode != modeBoard {
+		t.Fatalf("erwarte modeBoard nach fehlgeschlagenem 'V', habe %v", m.mode)
+	}
+	if len(m.state.Board.LivePrompts()) != before {
+		t.Fatalf("erwarte keinen neuen Prompt nach fehlgeschlagenem 'V', habe %d (vorher %d)", len(m.state.Board.LivePrompts()), before)
+	}
+}
+
+func TestBoardKey_ShiftC_CopiesFocusedPromptToClipboard(t *testing.T) {
+	m := newTestModel()
+	fc := &fakeClipboard{}
+	m.clipboard = fc
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1 ("erste Idee")
+	m = updated.(Model)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
+	m = updated.(Model)
+
+	if fc.writeCalls != 1 {
+		t.Fatalf("erwarte genau einen WriteAll-Aufruf, habe %d", fc.writeCalls)
+	}
+	if fc.lastWritten != "erste Idee" {
+		t.Fatalf("erwarte kopierten Inhalt 'erste Idee', habe %q", fc.lastWritten)
+	}
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach erfolgreichem 'C': %v", m.err)
+	}
+}
+
+func TestBoardKey_ShiftC_ClipboardErrorSetsErr(t *testing.T) {
+	m := newTestModel()
+	fc := &fakeClipboard{writeErr: errors.New("kein Clipboard-Tool installiert")}
+	m.clipboard = fc
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
+	m = updated.(Model)
+
+	if m.err == nil {
+		t.Fatal("erwarte gesetzten Fehler nach 'C' mit fehlschlagendem Clipboard-Write")
+	}
+}
+
+func TestBoardKey_ShiftC_NoFocusedPrompt_IsNoOp(t *testing.T) {
+	state := application.AppState{Board: domain.Board{}, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, nil)
+	fc := &fakeClipboard{}
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, fc)
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
+
+	if fc.writeCalls != 0 {
+		t.Fatalf("erwarte keinen WriteAll-Aufruf ohne fokussierten Prompt, habe %d", fc.writeCalls)
 	}
 }

@@ -25,7 +25,7 @@ func TestView_BoardMode_MultilinePrompt_ShowsFullContentAsOneLine(t *testing.T) 
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	out := m.View()
 
@@ -204,6 +204,7 @@ func TestView_EmptyBoard_ShowsHint(t *testing.T) {
 		m0Executor(),
 		fakeClock{now: 100},
 		&fakeIDGen{},
+		&fakeClipboard{},
 	)
 	out := m.View()
 	if !strings.Contains(out, "[i] neuer Prompt") {
@@ -228,7 +229,7 @@ func TestView_BoardMode_OutputNeverExceedsTerminalHeight(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 	// Tastendruck: Banner weg (füllt sonst die Phantom-Zeile, siehe View()-Kommentar).
@@ -248,6 +249,7 @@ func TestView_EmptyBoard_ShowsActivePrefixLabel(t *testing.T) {
 		m0Executor(),
 		fakeClock{now: 100},
 		&fakeIDGen{},
+		&fakeClipboard{},
 	)
 
 	out := m.View()
@@ -490,7 +492,7 @@ func TestSyncScroll_FocusMovingWithinWindow_KeepsScrollStartStable(t *testing.T)
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -509,7 +511,7 @@ func TestSyncScroll_FocusFirst_MakesFirstPromptVisibleAgain(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -545,7 +547,7 @@ func TestView_BoardMode_FewPromptsWithHeight_FooterPinnedToBottom(t *testing.T) 
 }
 
 func TestView_EmptyBoard_HeightSet_PaddingBetweenHintAndFooter(t *testing.T) {
-	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
 	m = updated.(Model)
 
@@ -563,7 +565,7 @@ func TestView_EmptyBoard_HeightSet_PaddingBetweenHintAndFooter(t *testing.T) {
 }
 
 func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
-	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(emptyState(), m0Executor(), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 	planOff, clearOff := false, false
 	m.state.Board.Session.PlanModeActive = &planOff
 	m.state.Board.Session.ClearModeActive = &clearOff

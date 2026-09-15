@@ -113,6 +113,31 @@ func TestReduce_SendSelectionToPane_UsesFocusedPrompt(t *testing.T) {
 	}
 }
 
+func TestReduce_SendSelectionToPane_PrependsTextPrefix(t *testing.T) {
+	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
+	clock := fakeClock{now: 100}
+	ids := &fakeIDGen{}
+
+	state, _, err := Reduce(state, CreatePrompt{Content: "hallo welt"}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	focusedID := state.Board.LivePrompts()[0].ID
+	state.FocusedID = &focusedID
+
+	_, effects, err := Reduce(state, SendSelectionToPane{Direction: ports.DirectionUp, TextPrefix: "/subtask "}, clock, ids)
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	sendEffect, ok := effects[0].(SendDispatch)
+	if !ok {
+		t.Fatalf("erwarte SendDispatch-Effect, habe %T", effects[0])
+	}
+	if sendEffect.Text != "/subtask hallo welt" {
+		t.Fatalf("erwarte Text '/subtask hallo welt', habe %q", sendEffect.Text)
+	}
+}
+
 func TestReduce_SendSelectionToPane_FailsWithoutFocus(t *testing.T) {
 	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
 	clock := fakeClock{now: 100}

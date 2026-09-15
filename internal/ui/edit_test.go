@@ -38,7 +38,7 @@ func TestEditFlow_NewPrompt_TypeThenEscape_PersistsToNewPromptNotOldFocus(t *tes
 	board = board.AddPrompt("alt-a", "erste Idee", 100)
 	board = board.AddPrompt("alt-b", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{})
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf alt-a
 	m = updated.(Model)
@@ -106,7 +106,30 @@ func TestEditFlow_NewPrompt_WhitespaceOnlyThenEscape_DeletesPrompt(t *testing.T)
 	}
 }
 
-func TestHandleEditKey_Enter_InsertsNewline(t *testing.T) {
+func TestHandleEditKey_Enter_CommitsAndLeavesEditMode(t *testing.T) {
+	m := newTestModel()
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // in Edit-Modus wechseln
+	m = updated.(Model)
+	m.editBuf = "" // vorbefüllten Inhalt für den Test ignorieren
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("!")})
+	m = updated.(Model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(Model)
+
+	if m.mode != modeBoard {
+		t.Fatalf("erwarte modeBoard nach Enter, habe %v", m.mode)
+	}
+	live := m.state.Board.LivePrompts()
+	if live[0].Content != "!" {
+		t.Fatalf("erwarte '!', habe %q", live[0].Content)
+	}
+}
+
+func TestHandleEditKey_CtrlJ_InsertsNewline(t *testing.T) {
 	m := newTestModel()
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
@@ -117,13 +140,16 @@ func TestHandleEditKey_Enter_InsertsNewline(t *testing.T) {
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlJ})
 	m = updated.(Model)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
 	m = updated.(Model)
 
 	if m.editBuf != "a\nb" {
 		t.Fatalf("erwarte editBuf 'a\\nb', habe %q", m.editBuf)
+	}
+	if m.mode != modeEdit {
+		t.Fatalf("erwarte weiterhin modeEdit nach Ctrl+J, habe %v", m.mode)
 	}
 }
 

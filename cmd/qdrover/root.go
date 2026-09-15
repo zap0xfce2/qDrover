@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	"qdrover/internal/adapters/clipboard"
 	"qdrover/internal/adapters/herdr"
 	"qdrover/internal/adapters/jsonstore"
 	"qdrover/internal/adapters/sysclock"
@@ -66,6 +67,7 @@ func runTUI() error {
 
 	clock := sysclock.New()
 	ids := uuidgen.New()
+	clip := clipboard.New()
 
 	board, err := application.LoadOrCreateBoard(store, cwd, clock, ids)
 	if err != nil {
@@ -77,7 +79,7 @@ func runTUI() error {
 	state := application.AppState{Board: board, History: application.NewHistory(undoHistoryDepth)}
 	state.FocusedID = firstLivePromptID(board)
 
-	model := ui.New(state, executor, clock, ids).WithVersion(version)
+	model := ui.New(state, executor, clock, ids, clip).WithVersion(version)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	_, err = p.Run()
 	return err

@@ -24,6 +24,10 @@ const (
 	prefixCommandClear = "/clear"
 )
 
+// subtaskPrefix wird dem Text bei Shift+S vorangestellt (eine Nachricht,
+// unabhängig von Plan-/Clear-Modus — siehe handleBoardKey, Fall "S").
+const subtaskPrefix = "/subtask "
+
 type mode int
 
 const (
@@ -33,11 +37,12 @@ const (
 )
 
 type Model struct {
-	state    application.AppState
-	executor *application.Executor
-	clock    ports.Clock
-	ids      ports.IDGenerator
-	mode     mode
+	state     application.AppState
+	executor  *application.Executor
+	clock     ports.Clock
+	ids       ports.IDGenerator
+	clipboard ports.Clipboard
+	mode      mode
 	editBuf  string
 	// editingNewPrompt: true während der Edit-Session eines frisch mit "i"
 	// angelegten Prompts — steuert, ob ein beim Verlassen des Edit-Modus
@@ -61,8 +66,8 @@ type Model struct {
 	sending bool
 }
 
-func New(state application.AppState, executor *application.Executor, clock ports.Clock, ids ports.IDGenerator) Model {
-	return Model{state: state, executor: executor, clock: clock, ids: ids, mode: modeBoard}
+func New(state application.AppState, executor *application.Executor, clock ports.Clock, ids ports.IDGenerator, clip ports.Clipboard) Model {
+	return Model{state: state, executor: executor, clock: clock, ids: ids, clipboard: clip, mode: modeBoard}
 }
 
 // WithVersion setzt die per ldflags gebaute Versionsnummer für den

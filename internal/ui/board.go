@@ -46,7 +46,7 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, PrefixCommands: m.activePrefixCommands()})
 	case "S":
-		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
+		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, TextPrefix: subtaskPrefix})
 	case "shift+up":
 		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
 	case "shift+down":
@@ -65,6 +65,27 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.focusLast(), nil
 	case " ":
 		return m.toggleMarked(), nil
+	case "V":
+		content, err := m.clipboard.ReadAll()
+		if err != nil {
+			m.err = err
+			return m, nil
+		}
+		m = m.dispatch(application.CreatePrompt{Content: ""})
+		m.mode = modeEdit
+		m.editBuf = content
+		m.editingNewPrompt = true
+		return m, nil
+	case "C":
+		if m.state.FocusedID == nil {
+			return m, nil
+		}
+		if err := m.clipboard.WriteAll(m.focusedContent()); err != nil {
+			m.err = err
+			return m, nil
+		}
+		m.err = nil
+		return m, nil
 	}
 	return m, nil
 }

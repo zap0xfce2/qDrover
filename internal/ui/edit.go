@@ -28,18 +28,9 @@ func trimLastGrapheme(s string) string {
 
 func (m Model) handleEditKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
-	case tea.KeyEsc:
-		m.mode = modeBoard
-		if m.state.FocusedID != nil {
-			if m.editingNewPrompt && strings.TrimSpace(m.editBuf) == "" {
-				m = m.dispatch(application.DeletePrompt{ID: *m.state.FocusedID})
-			} else {
-				m = m.dispatch(application.EditPrompt{ID: *m.state.FocusedID, Content: m.editBuf})
-			}
-		}
-		m.editingNewPrompt = false
-		return m, nil
-	case tea.KeyEnter:
+	case tea.KeyEsc, tea.KeyEnter:
+		return m.commitEdit(), nil
+	case tea.KeyCtrlJ:
 		m.editBuf += "\n"
 		return m, nil
 	case tea.KeyBackspace:
@@ -53,4 +44,19 @@ func (m Model) handleEditKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// commitEdit speichert den Editor-Inhalt und verlässt den Edit-Modus (löscht
+// stattdessen bei leerem, neu angelegtem Prompt) — genutzt von Enter und Esc.
+func (m Model) commitEdit() Model {
+	m.mode = modeBoard
+	if m.state.FocusedID != nil {
+		if m.editingNewPrompt && strings.TrimSpace(m.editBuf) == "" {
+			m = m.dispatch(application.DeletePrompt{ID: *m.state.FocusedID})
+		} else {
+			m = m.dispatch(application.EditPrompt{ID: *m.state.FocusedID, Content: m.editBuf})
+		}
+	}
+	m.editingNewPrompt = false
+	return m
 }

@@ -57,6 +57,10 @@ type SendSelectionToPane struct {
 	// an die Ziel-Pane gesendet (z. B. ["/clear", "/plan"]). Leer = kein
 	// Präfix, normaler Send.
 	PrefixCommands []string
+	// TextPrefix wird dem gesendeten Text selbst vorangestellt (eine
+	// Nachricht, z. B. "/subtask " + Text), statt wie PrefixCommands als
+	// eigene, vorgelagerte Nachricht verschickt zu werden. Leer = kein Präfix.
+	TextPrefix string
 }
 
 func (SendSelectionToPane) isAction() {}
