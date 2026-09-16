@@ -22,7 +22,7 @@ qDrover verwaltet pro Arbeitsverzeichnis ein Board aus Text-Prompts, die im Term
   | `S` | sendet nach oben mit vorangestelltem `/subtask ` (z. B. `/subtask hallo welt`), Prompt wird danach entfernt (Undo-fähig), unabhängig von Plan-/Clear-Modus |
   | `shift`+`↑`/`↓`/`←`/`→` | sendet in die jeweilige Richtung, Prompt bleibt in der Liste |
 
-## AI-Assistierte Entwicklung
+## KI-Assistierte Entwicklung
 
 > [!IMPORTANT]
 > Dieses Projekt wurde mit erheblicher KI-Unterstützung erstellt, und das ist beabsichtigt und transparent.
