@@ -25,7 +25,7 @@ qDrover verwaltet pro Arbeitsverzeichnis ein Board aus Text-Prompts, die im Term
 > [!IMPORTANT]
 > Dieses Projekt wurde mit erheblicher KI-Unterstützung erstellt, und das ist beabsichtigt und transparent.
 >
-> Teile der Codebasis wurden mit KI generiert, aber die Anwendung wurde nicht als ungeprüfter Output herausgegeben. Der generierte Code wurde von einem menschlichen Entwickler überprüft, korrigiert und validiert, bevor er veröffentlicht wurde.
+> Teile der Codebasis wurden mit KI generiert, aber die Anwendung wurde nicht als ungeprüfter Output herausgegeben. Der generierte Code wurde von einem menschlichen Entwickler geprüft, korrigiert und validiert, bevor er veröffentlicht wurde.
 
 ## Voraussetzungen
 
