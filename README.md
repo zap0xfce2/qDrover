@@ -2,6 +2,8 @@
 
 **qDrover** ("query drover") ist ein in Go geschriebenes "prompt-querying"-Tool mit dem sich Prompts erstellen, verwalten und an eine [Herdr](https://herdr.dev)-Pane in welcher Claude-Code ausgeführt wird senden lassen.
 
+![qDrover TUI](img/snapshot1.png)
+
 ## Überblick
 
 qDrover verwaltet pro Arbeitsverzeichnis ein Board aus Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert und wieder gelöscht werden können. Ist zusätzlich [Herdr](https://herdr.dev) verfügbar, kann jeder Prompt per Tastendruck an eine benachbarte Herdr-Pane geschickt werden, optional mit vorangestellten `/plan`- oder `/clear`-Kommandos.
