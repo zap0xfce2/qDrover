@@ -48,8 +48,9 @@ Mit `go-task` (bevorzugt):
 
 ```
 task install     # baut dist/ und installiert das Linux-Binary nach ~/bin/qdrover
-task dist-build   # Cross-Builds nach dist/ (Linux amd64, macOS arm64) — nicht installiert
-task run          # TUI direkt starten, ohne Installation
+task dist-build   # Cross-Builds nach dist/ (Linux amd64, macOS arm64)
+task release      # dist/-Binaries als GitHub Release hochladen
+task run          # TUI direkt starten
 task test         # go test ./...
 task lint         # golangci-lint run
 ```

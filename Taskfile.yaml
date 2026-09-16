@@ -21,6 +21,12 @@ tasks:
       - GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_amd64 ./cmd/qdrover
       - GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_arm64 ./cmd/qdrover
 
+  release:
+    desc: GitHub Release mit den dist/-Binaries erstellen (gh CLI muss installiert & angemeldet sein)
+    deps: [dist-build]
+    cmds:
+      - gh release create {{.QDROVER_VERSION}} dist/qdrover_amd64 dist/qdrover_arm64 --title "{{.QDROVER_VERSION}}" --generate-notes
+
   test:
     desc: Alle Tests ausführen
     cmds:
