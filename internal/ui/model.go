@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -120,7 +121,9 @@ func (m Model) dispatch(action application.Action) Model {
 // recordSentHistory dispatcht für jeden erfolgreich ausgeführten
 // SendDispatch-Effect ein RecordSentText, das den gesendeten Text (Zeilenumbrüche
 // durch Leerzeichen ersetzt) an die persistierte Session.SentHistory anhängt
-// (Footer-Anzeige in View()).
+// (Footer-Anzeige in View()), und deaktiviert Clear-Modus, falls dieser Send
+// den /clear-Präfix tatsächlich benutzt hat — Clear-Modus ist ein einmaliger
+// "Schuss" statt eines Dauerzustands, anders als Plan-Modus.
 func (m Model) recordSentHistory(effects []application.Effect) Model {
 	for _, eff := range effects {
 		dispatchEffect, ok := eff.(application.SendDispatch)
@@ -129,6 +132,10 @@ func (m Model) recordSentHistory(effects []application.Effect) Model {
 		}
 		singleLine := strings.ReplaceAll(dispatchEffect.Text, "\n", " ")
 		m = m.dispatch(application.RecordSentText{Text: singleLine})
+
+		if slices.Contains(dispatchEffect.PrefixCommands, prefixCommandClear) && m.state.Board.Session.IsClearModeActive() {
+			m = m.dispatch(application.ToggleClearMode{})
+		}
 	}
 	return m
 }

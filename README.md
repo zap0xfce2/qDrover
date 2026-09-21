@@ -13,7 +13,7 @@ qDrover verwaltet pro Arbeitsverzeichnis ein Board aus Text-Prompts, die im Term
 - **Board & Prompts** — Prompts anlegen, bearbeiten, verschieben und löschen
 - **Undo/Redo** — Snapshot-basierter Verlauf über die letzten 50 Änderungen (`u`/`r`).
 - **Markieren** — Prompts lassen sich mit der Leertaste dauerhaft markieren. Ein markierter Prompt übersteht das automatische Löschen beim Senden mit `s`/`S`.
-- **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt.
+- **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt. Clear-Modus ist ein einmaliger "Schuss": nach erfolgreichem Senden mit `/clear`-Präfix schaltet er sich selbst wieder ab. Plan-Modus bleibt aktiv, bis er manuell mit `p` umgeschaltet wird.
 - **Sendehistorie** — die letzten 5 gesendeten Texte werden mit Zeitstempel im Footer angezeigt.
 - **Sechs Sende-Tasten**, alle senden an die Nachbar-Pane in der jeweiligen Richtung bzw. nach oben:
   | Taste | Aktion |
@@ -104,7 +104,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | `S` | `/subtask` + Text nach oben senden, Prompt wird danach entfernt (Undo-fähig) |
 | `leertaste` | Prompt markieren/entmarkieren (cyan) — überstimmt Löschen bei `s`/`S` |
 | `p` | Plan-Modus umschalten (Ziel bekommt vor jedem Send erst `/plan`) |
-| `c` | Clear-Modus umschalten (Ziel bekommt vor jedem Send erst `/clear`) |
+| `c` | Clear-Modus umschalten (Ziel bekommt vor dem nächsten Send erst `/clear`, schaltet sich nach erfolgreichem Senden automatisch wieder ab) |
 
 **Verlauf**
 | Taste | Aktion |

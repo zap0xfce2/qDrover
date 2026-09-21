@@ -613,6 +613,105 @@ func TestBoardKey_S_WithPlanPrefix_SendsPrefixInAction(t *testing.T) {
 	}
 }
 
+func TestBoardKey_S_SuccessfulSend_DeactivatesClearMode(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach 's': %v", m.err)
+	}
+	if m.state.Board.Session.IsClearModeActive() {
+		t.Fatal("erwarte ClearModeActive=false nach erfolgreichem 's'")
+	}
+}
+
+func TestBoardKey_ShiftUp_SuccessfulSend_DeactivatesClearMode(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = m.dispatch(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
+
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach shift+up: %v", m.err)
+	}
+	if m.state.Board.Session.IsClearModeActive() {
+		t.Fatal("erwarte ClearModeActive=false nach erfolgreichem shift+up")
+	}
+}
+
+func TestBoardKey_ShiftS_SuccessfulSend_LeavesClearModeUnchanged(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach 'S': %v", m.err)
+	}
+	if !m.state.Board.Session.IsClearModeActive() {
+		t.Fatal("erwarte ClearModeActive weiterhin true nach 'S' (Subtask-Pfad unberührt von Clear-Modus)")
+	}
+}
+
+func TestBoardKey_S_SuccessfulSend_DeactivatesOnlyClearModeNotPlanMode(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-/Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+
+	if m.err != nil {
+		t.Fatalf("unerwarteter Fehler nach 's': %v", m.err)
+	}
+	if m.state.Board.Session.IsClearModeActive() {
+		t.Fatal("erwarte ClearModeActive=false nach erfolgreichem 's'")
+	}
+	if !m.state.Board.Session.IsPlanModeActive() {
+		t.Fatal("erwarte PlanModeActive weiterhin true nach erfolgreichem 's' (nur Clear-Modus wird deaktiviert)")
+	}
+}
+
+func TestBoardKey_S_FailedSend_LeavesClearModeUnchanged(t *testing.T) {
+	board := domain.Board{}
+	board = board.AddPrompt("t1", "erste Idee", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	sendErr := errors.New("herdr nicht erreichbar")
+	executor := application.NewExecutor(nullStore{}, &fakeHerdr{err: sendErr})
+	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
+	m = updated.(Model)
+	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+
+	if !errors.Is(m.err, sendErr) {
+		t.Fatalf("erwarte Fehler %v nach fehlgeschlagenem Send, habe %v", sendErr, m.err)
+	}
+	if !m.state.Board.Session.IsClearModeActive() {
+		t.Fatal("erwarte ClearModeActive weiterhin true nach fehlgeschlagenem 's' (kein Toggle bei Fehler)")
+	}
+}
+
 func TestBoardKey_H_OpensHelp_AnyKeyClosesIt(t *testing.T) {
 	m := newTestModel()
 
