@@ -12,8 +12,8 @@ func TestDefaultStateDir_EndsWithExpectedSuffix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
-	if !strings.HasSuffix(dir, "/.local/state/qdrover/sessions") {
-		t.Fatalf("erwarte Suffix '/.local/state/qdrover/sessions', habe %q", dir)
+	if !strings.HasSuffix(dir, "/.local/state/qdrover") {
+		t.Fatalf("erwarte Suffix '/.local/state/qdrover', habe %q", dir)
 	}
 }
 

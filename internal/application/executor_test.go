@@ -8,6 +8,21 @@ import (
 	"qdrover/internal/ports"
 )
 
+type fakeStore struct {
+	boards map[domain.SessionID]domain.Board
+	merged *domain.Board
+}
+
+func newFakeStore() *fakeStore { return &fakeStore{boards: map[domain.SessionID]domain.Board{}} }
+
+func (s *fakeStore) Save(board domain.Board) (domain.Board, error) {
+	s.boards[board.Session.ID] = board
+	if s.merged != nil {
+		return *s.merged, nil
+	}
+	return board, nil
+}
+
 type fakeHerdr struct {
 	current        string
 	neighbor       string
