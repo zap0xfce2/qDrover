@@ -48,7 +48,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case RestorePrompt:
-		b, err := state.Board.RestorePrompt(a.ID, clock.Now())
+		b, err := state.Board.RestorePrompt(a.ID)
 		if err != nil {
 			return state, nil, err
 		}

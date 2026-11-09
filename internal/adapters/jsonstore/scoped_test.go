@@ -424,3 +424,17 @@ func TestScopedStore_MarkAfterForeignEdit_KeepsForeignContent(t *testing.T) {
 		t.Fatalf("fremde Bearbeitung verloren: %q", got)
 	}
 }
+
+func TestScopedStore_FailedSendOfLocal_LocalFileUnchanged(t *testing.T) {
+	paths := newScopedPaths(t)
+	before := seedLocal(t, paths)
+	s := paths.store()
+	state := application.AppState{Board: mustLoad(t, s), History: application.NewHistory(50)}
+
+	state = reduceAndSave(t, s, state, application.DeletePrompt{ID: "l1"})
+	reduceAndSave(t, s, state, application.RestorePrompt{ID: "l1"})
+
+	if after := mustRead(t, paths.local); string(after) != string(before) {
+		t.Fatalf("erwarte unveränderte Lokaldatei:\n%s\nhabe:\n%s", before, after)
+	}
+}

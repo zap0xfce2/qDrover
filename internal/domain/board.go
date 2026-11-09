@@ -72,7 +72,6 @@ func (b Board) DeletePrompt(id PromptID, now Timestamp) (Board, error) {
 		if t.ID == id && t.IsLive() {
 			deletedAt := now
 			newPrompts[i].DeletedAt = &deletedAt
-			newPrompts[i].UpdatedAt = now
 			found = true
 			break
 		}
@@ -90,8 +89,10 @@ func (b Board) DeletePrompt(id PromptID, now Timestamp) (Board, error) {
 // bloßes Zurücksetzen von DeletedAt zu einer Positions-Kollision mit dem
 // Prompt führen, der inzwischen die frei gewordene Position übernommen hat —
 // deshalb werden erst alle lebenden Prompts ab der alten Position um 1
-// verschoben, bevor final neu durchnummeriert wird.
-func (b Board) RestorePrompt(id PromptID, now Timestamp) (Board, error) {
+// verschoben, bevor final neu durchnummeriert wird. UpdatedAt bleibt
+// unangetastet (DeletePrompt setzt es ebenfalls nicht), damit ein
+// Löschen+Wiederherstellen keinen Diff in qdrover.json hinterlässt.
+func (b Board) RestorePrompt(id PromptID) (Board, error) {
 	newPrompts := append([]Prompt{}, b.Prompts...)
 	targetIdx := -1
 	for i, t := range newPrompts {
@@ -111,7 +112,6 @@ func (b Board) RestorePrompt(id PromptID, now Timestamp) (Board, error) {
 		}
 	}
 	newPrompts[targetIdx].DeletedAt = nil
-	newPrompts[targetIdx].UpdatedAt = now
 
 	b.Prompts = reindexLivePositions(newPrompts)
 	return b, nil
