@@ -22,11 +22,16 @@ func (b Board) LivePrompts() []Prompt {
 }
 
 func (b Board) AddPrompt(id PromptID, content string, now Timestamp) Board {
+	return b.AddScopedPrompt(id, content, ScopeGlobal, now)
+}
+
+func (b Board) AddScopedPrompt(id PromptID, content string, scope Scope, now Timestamp) Board {
 	live := b.LivePrompts()
 	newPrompts := append([]Prompt{}, b.Prompts...)
 	newPrompts = append(newPrompts, Prompt{
 		ID:        id,
 		Content:   content,
+		Scope:     scope,
 		Position:  PromptPosition(len(live)),
 		CreatedAt: now,
 		UpdatedAt: now,

@@ -140,3 +140,11 @@ func TestEditPrompt_UpdatesContentAndTimestamp(t *testing.T) {
 		t.Fatalf("erwarte Content 'neu', habe %q", live[0].Content)
 	}
 }
+
+func TestAddScopedPrompt_SetsScope(t *testing.T) {
+	b := Board{}.AddScopedPrompt("t1", "lokal", ScopeLocal, 100)
+
+	if got := b.LivePrompts()[0].Scope; got != ScopeLocal {
+		t.Fatalf("erwarte Scope local, habe %q", got)
+	}
+}
