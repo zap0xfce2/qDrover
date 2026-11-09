@@ -136,7 +136,7 @@ func TestLogTab_EditSendDeleteMarkAreNoops(t *testing.T) {
 		{Type: tea.KeyRunes, Runes: []rune("C")},
 		{Type: tea.KeyShiftUp},
 		{Type: tea.KeyRunes, Runes: []rune("u")},
-		{Type: tea.KeyRunes, Runes: []rune("r")},
+		{Type: tea.KeyRunes, Runes: []rune("R")},
 	} {
 		t.Run(k.String(), func(t *testing.T) {
 			herdr := &fakeHerdr{}
