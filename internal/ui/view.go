@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"qdrover/internal/application"
 	"qdrover/internal/domain"
 )
 
@@ -15,16 +16,15 @@ import (
 // einem Tag und spart Footer-Platz gegenüber einem vollen Datum.
 const sentTimestampFormat = "15:04:05"
 
+// tabBarHeight: die Reiterzeile belegt immer genau eine Zeile über der Liste.
+const tabBarHeight = 1
+
 // sentHistoryFadeColors: Farbrampe je Alters-Rang (0 = zuletzt gesendet).
-// Alle Ränge nutzen feste xterm256-Codes statt Basis-ANSI (0-15): die sind
-// terminal-theme-abhängig und unvorhersehbar. Rang 0 kräftiges Grün, Ränge
-// 1-4 verblassen Richtung Grau mit gedämpftem Helligkeits-Boden (RGB
-// 95,175,95 → 95,135,95 → 95,95,95 → 78,78,78) statt bis nahe Schwarz zu
-// fallen — im Dark-Mode-Terminal per Preview verifiziert (User-Feedback,
-// vorherige Rampen waren entweder am unteren Ende unlesbar oder nicht
-// monoton unterscheidbar). Größe an domain.MaxSentHistoryEntries gebunden,
-// da SentHistory nie mehr Einträge hält.
-var sentHistoryFadeColors = []string{"34", "71", "65", "59", "239"}
+// Feste xterm256-Codes statt Basis-ANSI (0-15), da letztere vom Terminal-Theme
+// umdefiniert werden. Rang 0 kräftiges Grün, danach über Graugrün in Graustufen
+// verblassend, Boden 239 (78,78,78) statt nahe Schwarz — bleibt lesbar.
+// Größe an domain.MaxSentHistoryEntries gebunden (Test sichert das ab).
+var sentHistoryFadeColors = []string{"34", "71", "65", "245", "244", "243", "242", "241", "240", "239"}
 
 // sentHistoryStyleForRank liefert den Style für einen Sendehistory-Eintrag
 // nach Alters-Rang (0 = neuester). idx wird auf den letzten Farbeintrag
@@ -41,15 +41,16 @@ func sentHistoryStyleForRank(rank int) lipgloss.Style {
 // prefixCommandStyle hebt den persistenten Plan-/Clear-Modus-Status im Footer hervor.
 var prefixCommandStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 
-// markedStyle hebt eine per Leertaste markierte Prompt-Zeile im Board hervor.
+// markedStyle hebt eine per Leertaste fixierte Prompt-Zeile hervor — nötig,
+// weil man in Global/Lokal sonst nicht sieht, warum s den Prompt stehen lässt.
 var markedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 
 // versionBannerStyle rendert die Startversion in Blau (fixer xterm256-Code,
 // theme-unabhängig, statt des vormaligen Basis-ANSI-Grau "8").
 var versionBannerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
 
-// withVersionBanner hängt "qDrover <version>" rechtsbündig als letzte
-// Bildschirmzeile an, solange showVersionBanner() true liefert (bis zum
+// withVersionBanner setzt "qDrover <version>" rechtsbündig in die erste
+// Zeile, solange showVersionBanner() true liefert (bis zum
 // ersten Tastendruck).
 func (m Model) withVersionBanner(content string) string {
 	if !m.showVersionBanner() {
@@ -68,27 +69,22 @@ func (m Model) withVersionBannerAlways(content string) string {
 	return m.appendVersionBanner(content)
 }
 
-// appendVersionBanner rendert und platziert den Banner (setzt m.version != ""
-// voraus). Er braucht dafür keine eigene Zeile: er wird rechtsbündig an die
-// bereits vorhandene letzte Inhaltszeile angehängt (lipgloss.Width statt
-// len(), damit ANSI-Styling nicht mitgezählt wird), statt eine neue Zeile zu
-// erzwingen — der Banner verbraucht damit kein Höhenbudget der Prompt-Liste.
-// Ohne bekannte Breite (kein WindowSizeMsg empfangen, z. B. in Tests) wird
-// wie bisher als eigene Zeile angehängt, da sich sonst keine sinnvolle Lücke
-// berechnen lässt. Passt der Banner nicht mehr in die Restbreite der letzten
-// Zeile, wird er weggelassen statt Overflow zu erzeugen.
+// appendVersionBanner setzt den Banner rechtsbündig in die erste Zeile (im
+// Board die Reiterzeile) statt eine eigene Zeile zu belegen — kein Höhenbudget
+// nötig. lipgloss.Width statt len(), damit ANSI-Styling nicht mitzählt. Ohne
+// bekannte Breite (Tests) mit einem Leerzeichen angehängt; passt er nicht in
+// die Restbreite, wird er weggelassen statt Overflow zu erzeugen.
 func (m Model) appendVersionBanner(content string) string {
 	label := "qDrover " + m.version
-	if m.width <= 0 {
-		return content + "\n" + versionBannerStyle.Render(label)
-	}
 	lines := strings.Split(content, "\n")
-	last := len(lines) - 1
-	gap := m.width - lipgloss.Width(lines[last]) - lipgloss.Width(label)
+	gap := 1
+	if m.width > 0 {
+		gap = m.width - lipgloss.Width(lines[0]) - lipgloss.Width(label)
+	}
 	if gap < 1 {
 		return content
 	}
-	lines[last] += strings.Repeat(" ", gap) + versionBannerStyle.Render(label)
+	lines[0] += strings.Repeat(" ", gap) + versionBannerStyle.Render(label)
 	return strings.Join(lines, "\n")
 }
 
@@ -146,64 +142,77 @@ func (m Model) renderView() string {
 		return fmt.Sprintf("Bearbeite Prompt:\n%s\n\n[Esc: speichern & verlassen]", m.editor.View())
 	}
 
-	live := m.state.Board.LivePrompts()
-	footer := strings.Join(m.footerLines(), "\n")
-	if len(live) == 0 {
-		hint := "[i] neuer Prompt, [q] beenden, [h] Hilfe"
-		if footer != "" {
-			if m.height > 0 {
-				if padding := m.maxVisiblePrompts() - 1; padding > 0 {
-					hint += strings.Repeat("\n", padding)
-				}
-			}
-			hint += "\n" + footer
-		}
-		return m.withVersionBanner(hint)
-	}
-
-	start, end := m.visiblePromptRange(live)
-
-	var b strings.Builder
-	for _, t := range live[start:end] {
-		cursor := "  "
-		if m.state.FocusedID != nil && t.ID == *m.state.FocusedID {
-			cursor = "> "
-		}
-		singleLine := strings.ReplaceAll(t.Content, "\n", " ")
-		line := truncateToWidth(cursor+singleLine, m.width)
-		if t.Marked {
-			line = markedStyle.Render(line)
-		}
-		fmt.Fprintln(&b, line)
-	}
-	if footer != "" {
-		if m.height > 0 {
-			if padding := m.maxVisiblePrompts() - (end - start); padding > 0 {
-				b.WriteString(strings.Repeat("\n", padding))
-			}
-		}
-		fmt.Fprintf(&b, "%s\n", footer)
-	}
-	// TrimSuffix vor withVersionBanner (nicht erst im äußeren View()):
-	// appendVersionBanner hängt den Banner an die letzte Zeile an — ohne
-	// diesen Trim wäre das wegen des trailing "\n" ein leeres Phantom-Element
-	// unterhalb der eigentlichen Status-/History-Zeile statt diese Zeile selbst.
-	return m.withVersionBanner(strings.TrimSuffix(b.String(), "\n"))
+	return m.withVersionBanner(m.tabBar() + "\n" + m.boardBody())
 }
 
-// footerLines liefert die aktiven Footer-Abschnitte (Sendehistorie,
-// Plan-/Clear-Status, Fehlermeldung) als einzelne Zeilenblöcke — leer, wenn
+// boardBody rendert die Prompt-Liste des aktiven Reiters (bzw. dessen
+// Hinweiszeile) samt Footer unterhalb der Reiterzeile.
+func (m Model) boardBody() string {
+	if m.tab == tabLog {
+		if body := m.logBody(); body != "" {
+			return m.withFooter(body, strings.Count(body, "\n")+1)
+		}
+	}
+	live := application.VisibleLive(m.state)
+	if len(live) == 0 {
+		return m.withFooter(m.emptyTabHint(), 1)
+	}
+	start, end := m.visiblePromptRange(live)
+	lines := make([]string, 0, end-start)
+	for _, t := range live[start:end] {
+		lines = append(lines, m.promptLine(t))
+	}
+	return m.withFooter(strings.Join(lines, "\n"), end-start)
+}
+
+// logBody rendert die Sendehistory als Inhalt des Log-Reiters, bei bekannter
+// Höhe auf die verfügbaren Zeilen gekürzt (neueste zuerst bleiben erhalten).
+func (m Model) logBody() string {
+	block := m.sentHistoryBlock()
+	if block == "" || m.height <= 0 {
+		return block
+	}
+	lines := strings.Split(block, "\n")
+	return strings.Join(lines[:min(len(lines), max(m.maxVisiblePrompts(), 1))], "\n")
+}
+
+// promptLine rendert eine Prompt-Zeile: Cursor, Herkunft (nur Fixiert) und
+// Inhalt als eine Zeile, auf Terminalbreite gekürzt.
+func (m Model) promptLine(t domain.Prompt) string {
+	cursor := "  "
+	if m.state.FocusedID != nil && t.ID == *m.state.FocusedID {
+		cursor = "> "
+	}
+	singleLine := strings.ReplaceAll(t.Content, "\n", " ")
+	line := truncateToWidth(cursor+m.originPrefix(t)+singleLine, m.width)
+	if t.Marked {
+		return markedStyle.Render(line)
+	}
+	return line
+}
+
+// withFooter hängt den Footer an body (bodyLines Zeilen) an und füllt bei
+// bekannter Höhe vorher mit Leerzeilen auf, damit der Footer am unteren
+// Bildschirmrand sitzt.
+func (m Model) withFooter(body string, bodyLines int) string {
+	footer := strings.Join(m.footerLines(), "\n")
+	if footer == "" {
+		return body
+	}
+	if m.height > 0 {
+		if padding := m.maxVisiblePrompts() - bodyLines; padding > 0 {
+			body += strings.Repeat("\n", padding)
+		}
+	}
+	return body + "\n" + footer
+}
+
+// footerLines liefert die aktiven Footer-Abschnitte (Plan-/Clear-Status,
+// Fehlermeldung) als einzelne Zeilenblöcke — leer, wenn
 // nichts anzuzeigen ist. Einzige Quelle für sowohl das Rendering in View()
 // als auch die Höhenmessung in footerHeight(), damit beide nie auseinanderlaufen.
-// Plan-/Clear-Status steht bewusst nach der Historie (kurzer, fixer Text als
-// letzte Footer-Zeile) — appendVersionBanner hängt den Versions-Banner an
-// die letzte Zeile an, das lässt ihm zuverlässiger Platz als eine
-// potenziell lange, näher an die Terminalbreite reichende History-Zeile.
 func (m Model) footerLines() []string {
 	var lines []string
-	if block := m.sentHistoryBlock(); block != "" {
-		lines = append(lines, block)
-	}
 	if label := m.prefixStatusLabel(); label != "" {
 		lines = append(lines, prefixCommandStyle.Render(label))
 	}
@@ -226,12 +235,12 @@ func (m Model) footerHeight() int {
 }
 
 // maxVisiblePrompts liefert die für Promptzeilen verbleibende Höhe
-// (Terminalhöhe minus Footer), auf 0 geklemmt — der Footer kann bei sehr
+// (Terminalhöhe minus Reiterzeile und Footer), auf 0 geklemmt — der Footer kann bei sehr
 // kleinem Terminal allein schon >= m.height sein, negative Werte dürfen
 // weder an anchoredWindow noch an Padding-Berechnungen durchsickern. Nur
 // sinnvoll, wenn m.height > 0 — Aufrufer prüfen das selbst.
 func (m Model) maxVisiblePrompts() int {
-	v := m.height - m.footerHeight()
+	v := m.height - tabBarHeight - m.footerHeight()
 	if v < 0 {
 		return 0
 	}

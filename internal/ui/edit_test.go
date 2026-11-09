@@ -17,7 +17,7 @@ func TestEditFlow_NewPrompt_TypeThenEscape_PersistsToNewPromptNotOldFocus(t *tes
 	board = board.AddPrompt("alt-a", "erste Idee", 100)
 	board = board.AddPrompt("alt-b", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf alt-a
 	m = updated.(Model)

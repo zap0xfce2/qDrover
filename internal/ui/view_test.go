@@ -25,7 +25,7 @@ func TestView_BoardMode_MultilinePrompt_ShowsFullContentAsOneLine(t *testing.T) 
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	out := m.View()
 
@@ -100,8 +100,9 @@ func TestView_BoardMode_NoPrefixActive_ShowsNoFooterLine(t *testing.T) {
 	}
 }
 
-func TestView_BoardMode_ShowsSentHistoryInFooter(t *testing.T) {
+func TestLogTab_ShowsSentHistory(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 
 	out := m.View()
@@ -122,6 +123,7 @@ func TestView_BoardMode_NoSentHistory_ShowsNoFooterLine(t *testing.T) {
 
 func TestView_BoardMode_ShowsMultipleSentHistoryEntriesInOrder(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "zweite Idee"})
 
@@ -135,6 +137,7 @@ func TestView_BoardMode_ShowsMultipleSentHistoryEntriesInOrder(t *testing.T) {
 
 func TestView_BoardMode_OlderSentHistoryEntry_IsStyledWithFadedColor(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "zweite Idee"})
 
@@ -150,8 +153,9 @@ func TestView_BoardMode_OlderSentHistoryEntry_IsStyledWithFadedColor(t *testing.
 	}
 }
 
-func TestView_EmptyBoard_ShowsSentHistoryInFooter(t *testing.T) {
+func TestLogTab_NoPrompts_ShowsSentHistory(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Prompts = nil
 
@@ -164,6 +168,7 @@ func TestView_EmptyBoard_ShowsSentHistoryInFooter(t *testing.T) {
 
 func TestView_BoardMode_LongSentHistoryEntry_TruncatesToOneLine(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.width = 20
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "ein sehr langer gesendeter Text"})
 
@@ -202,7 +207,6 @@ func TestView_EmptyBoard_ShowsHint(t *testing.T) {
 
 func TestView_BoardMode_MultipleFooterSections_NoDoubleBlankLines(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.err = fmt.Errorf("Testfehler")
 
 	out := m.View()
@@ -217,7 +221,7 @@ func TestView_BoardMode_OutputNeverExceedsTerminalHeight(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 	// Tastendruck: Banner weg (füllt sonst die Phantom-Zeile, siehe View()-Kommentar).
@@ -313,29 +317,24 @@ func TestView_VersionBanner_HiddenWithoutVersion(t *testing.T) {
 	}
 }
 
-func TestAppendVersionBanner_WithKnownWidth_InlinesIntoLastLine(t *testing.T) {
+func TestAppendVersionBanner_WithKnownWidth_InlinesIntoTabBar(t *testing.T) {
 	m := newTestModel().WithVersion("v1")
-	m.width = 60 // Statuszeile ("Plan-Modus: an, Clear-Modus: an") + Banner müssen nebeneinander passen
+	m.width = 60
 
-	out := m.View()
-	lines := strings.Split(out, "\n")
-	last := lines[len(lines)-1]
-	if !strings.Contains(last, "qDrover v1") {
-		t.Fatalf("erwarte Banner in der letzten Zeile statt einer eigenen, habe:\n%q", out)
+	first := strings.Split(m.View(), "\n")[0]
+	if !strings.Contains(first, "Log") || !strings.HasSuffix(first, "qDrover v1") {
+		t.Fatalf("erwarte Banner rechtsbündig in der Reiterzeile, habe:\n%q", first)
 	}
-	if strings.Count(out, "qDrover") != 1 {
-		t.Fatalf("erwarte Banner genau einmal, habe:\n%q", out)
-	}
-	// newTestModel() hat Plan-Modus aktiv (Footer nicht leer) — der Banner
-	// muss wirklich auf derselben Zeile wie die Statuszeile landen, nicht auf
-	// einer eigenen (leeren) Zeile darunter.
-	if !strings.Contains(last, "Plan-Modus: an") {
-		t.Fatalf("erwarte Banner auf derselben Zeile wie 'Plan-Modus: an' statt auf eigener Zeile, habe:\n%q", out)
-	}
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	withoutBanner := updated.(Model).View()
-	if strings.Count(out, "\n") != strings.Count(withoutBanner, "\n") {
-		t.Fatalf("erwarte gleiche Zeilenzahl mit/ohne Banner (Banner braucht keine eigene Zeile), habe %d vs %d Newlines", strings.Count(out, "\n"), strings.Count(withoutBanner, "\n"))
+}
+
+func TestAppendVersionBanner_NeedsNoExtraLine(t *testing.T) {
+	m := newTestModel().WithVersion("v1")
+	m.width = 60
+
+	withBanner := m.View()
+	m.versionBannerDismissed = true
+	if strings.Count(withBanner, "\n") != strings.Count(m.View(), "\n") {
+		t.Fatalf("erwarte gleiche Zeilenzahl mit/ohne Banner, habe:\n%q", withBanner)
 	}
 }
 
@@ -406,7 +405,7 @@ func TestSyncScroll_FocusMovingWithinWindow_KeepsScrollStartStable(t *testing.T)
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -425,7 +424,7 @@ func TestSyncScroll_FocusFirst_MakesFirstPromptVisibleAgain(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -444,16 +443,11 @@ func TestView_BoardMode_FewPromptsWithHeight_FooterPinnedToBottom(t *testing.T) 
 	m := newTestModel()
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
 	m = updated.(Model)
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 
 	out := m.View()
 	lines := strings.Split(out, "\n")
 	if len(lines) != m.height {
 		t.Fatalf("erwarte genau %d Zeilen (Footer am unteren Rand statt Lücke), habe %d:\n%q", m.height, len(lines), out)
-	}
-	wantTimestamp := time.UnixMilli(0).Format(sentTimestampFormat)
-	if !strings.Contains(lines[len(lines)-2], wantTimestamp+" — gesendet") {
-		t.Fatalf("erwarte Sendehistory in der vorletzten Zeile, habe:\n%q", out)
 	}
 	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
 		t.Fatalf("erwarte Statuszeile in der letzten Zeile, habe:\n%q", out)
@@ -470,8 +464,8 @@ func TestView_EmptyBoard_HeightSet_PaddingBetweenHintAndFooter(t *testing.T) {
 	if len(lines) != m.height {
 		t.Fatalf("erwarte genau %d Zeilen bei leerem Board mit Footer, habe %d:\n%q", m.height, len(lines), out)
 	}
-	if !strings.Contains(lines[0], "[i] neuer Prompt") {
-		t.Fatalf("erwarte Hint in erster Zeile, habe:\n%q", out)
+	if !strings.Contains(lines[1], "[i] neuer Prompt") {
+		t.Fatalf("erwarte Hint direkt unter der Reiterzeile, habe:\n%q", out)
 	}
 	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
 		t.Fatalf("erwarte Statuszeile in letzter Zeile, habe:\n%q", out)
@@ -487,14 +481,13 @@ func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
 	m = updated.(Model)
 
 	out := m.View()
-	if out != "[i] neuer Prompt, [q] beenden, [h] Hilfe" {
+	if out != "[Fixiert]  Global  Lokal  Log\n[i] neuer Prompt, [q] beenden, [h] Hilfe" {
 		t.Fatalf("erwarte reinen Hint ohne Padding bei leerem Footer, habe:\n%q", out)
 	}
 }
 
 func TestMaxVisiblePrompts_ClampsAtZero(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
 	m = updated.(Model)
 
@@ -505,7 +498,6 @@ func TestMaxVisiblePrompts_ClampsAtZero(t *testing.T) {
 
 func TestView_BoardMode_TinyTerminal_FooterLargerThanHeight_NoPanic(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
 	m = updated.(Model)
 
@@ -518,4 +510,43 @@ func emptyState() application.AppState {
 
 func m0Executor() *application.Executor {
 	return application.NewExecutor(nullStore{}, nil)
+}
+
+func TestFooter_NoSentHistory(t *testing.T) {
+	m := newTestModel()
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
+
+	if out := m.View(); strings.Contains(out, "— gesendet") {
+		t.Fatalf("erwarte keine Sendehistory im Footer des Global-Reiters, habe:\n%s", out)
+	}
+}
+
+func TestLogTab_ShowsSentHistoryNewestFirst(t *testing.T) {
+	m := onLogTab(newTestModel())
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "alt"})
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "neu"})
+
+	out := m.View()
+	if strings.Index(out, "— neu") > strings.Index(out, "— alt") {
+		t.Fatalf("erwarte neuesten Eintrag zuerst, habe:\n%s", out)
+	}
+}
+
+func TestLogTab_FullHistory_NeverExceedsTerminalHeight(t *testing.T) {
+	m := onLogTab(newTestModel())
+	for i := 0; i < domain.MaxSentHistoryEntries; i++ {
+		m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "x"})
+	}
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = updated.(Model)
+
+	if lines := strings.Count(m.View(), "\n") + 1; lines > m.height {
+		t.Fatalf("erwarte höchstens %d Zeilen, habe %d", m.height, lines)
+	}
+}
+
+func TestSentHistoryFadeColors_CoverEveryLogEntry(t *testing.T) {
+	if len(sentHistoryFadeColors) != domain.MaxSentHistoryEntries {
+		t.Fatalf("erwarte %d Farben für %d Log-Einträge, habe %d", domain.MaxSentHistoryEntries, domain.MaxSentHistoryEntries, len(sentHistoryFadeColors))
+	}
 }

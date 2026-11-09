@@ -97,7 +97,7 @@ func TestRestorePrompt_ReinsertsAtOriginalPosition(t *testing.T) {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
 
-	b, err = b.RestorePrompt("t2", 300)
+	b, err = b.RestorePrompt("t2")
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
@@ -114,14 +114,24 @@ func TestRestorePrompt_ReinsertsAtOriginalPosition(t *testing.T) {
 	}
 }
 
+func TestRestorePrompt_KeepsUpdatedAtFromBeforeDelete(t *testing.T) {
+	b := Board{}.AddPrompt("t1", "a", 100)
+	b, _ = b.DeletePrompt("t1", 200)
+	b, _ = b.RestorePrompt("t1")
+
+	if got := b.Prompts[0].UpdatedAt; got != 100 {
+		t.Fatalf("erwarte UpdatedAt 100, habe %d", got)
+	}
+}
+
 func TestRestorePrompt_ErrorsIfNotDeleted(t *testing.T) {
 	b := Board{}
 	b = b.AddPrompt("t1", "a", 100)
 
-	if _, err := b.RestorePrompt("t1", 200); err == nil {
+	if _, err := b.RestorePrompt("t1"); err == nil {
 		t.Fatal("erwarte Fehler beim Restore eines noch lebenden Prompts")
 	}
-	if _, err := b.RestorePrompt("unbekannt", 200); err == nil {
+	if _, err := b.RestorePrompt("unbekannt"); err == nil {
 		t.Fatal("erwarte Fehler beim Restore einer unbekannten ID")
 	}
 }
@@ -138,5 +148,13 @@ func TestEditPrompt_UpdatesContentAndTimestamp(t *testing.T) {
 	live := b.LivePrompts()
 	if live[0].Content != "neu" {
 		t.Fatalf("erwarte Content 'neu', habe %q", live[0].Content)
+	}
+}
+
+func TestAddScopedPrompt_SetsScope(t *testing.T) {
+	b := Board{}.AddScopedPrompt("t1", "lokal", ScopeLocal, 100)
+
+	if got := b.LivePrompts()[0].Scope; got != ScopeLocal {
+		t.Fatalf("erwarte Scope local, habe %q", got)
 	}
 }

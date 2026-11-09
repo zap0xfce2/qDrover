@@ -15,13 +15,14 @@ Navigation
   k / ↑        einen Prompt nach oben
   g            zum ersten Prompt
   G            zum letzten Prompt
+  ←/→          Reiter wechseln (Fixiert · Global · Lokal · Log)
 
 Bearbeiten
   i            neuen Prompt anlegen
   enter        fokussierten Prompt bearbeiten
   d            fokussierten Prompt löschen
-  J            Prompt nach unten verschieben
-  K            Prompt nach oben verschieben
+  J            Prompt nach unten verschieben (nur Global/Lokal)
+  K            Prompt nach oben verschieben (nur Global/Lokal)
   V            Zwischenablage als neuen Prompt einfügen (braucht xclip/xsel/wl-clipboard + X11/Wayland)
   C            fokussierten Prompt in Zwischenablage kopieren (auch über SSH per OSC52)
 
@@ -36,7 +37,7 @@ Im Editor
 Senden an Herdr-Pane
   shift+↑/↓/←/→  senden, Prompt bleibt in der Liste
   s              nach oben senden, Prompt wird danach entfernt (Undo-fähig)
-  leertaste      Prompt markieren/entmarkieren (cyan) — überstimmt Löschen bei s
+  leertaste      Prompt fixieren/lösen (cyan, erscheint im Reiter Fixiert) — überstimmt Löschen bei s
   p              Plan-Modus umschalten (Ziel bekommt vor jedem Send erst /plan), standardmäßig an
   c              Clear-Modus umschalten (Ziel bekommt vor jedem Send erst /clear), standardmäßig an
 

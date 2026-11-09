@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"qdrover/internal/domain"
 	"qdrover/internal/ports"
 )
 
@@ -16,18 +17,22 @@ func NewExecutor(store ports.Store, herdr ports.HerdrGateway) *Executor {
 	return &Executor{store: store, herdr: herdr}
 }
 
-func (e *Executor) Execute(ctx context.Context, effects []Effect) error {
+// Execute liefert das gemergte Board des letzten PersistBoard, sonst nil.
+func (e *Executor) Execute(ctx context.Context, effects []Effect) (*domain.Board, error) {
+	var merged *domain.Board
 	for _, eff := range effects {
 		switch ef := eff.(type) {
 		case PersistBoard:
-			if err := e.store.SaveSession(ef.Board); err != nil {
-				return fmt.Errorf("board persistieren: %w", err)
+			saved, err := e.store.Save(ef.Board)
+			if err != nil {
+				return nil, fmt.Errorf("board persistieren: %w", err)
 			}
+			merged = &saved
 		case SendDispatch:
 			if err := e.herdr.ResolveAndPromptWithPrefix(ctx, ef.Direction, ef.PrefixCommands, ef.Text); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	return nil
+	return merged, nil
 }

@@ -42,3 +42,13 @@ func (h *History) Redo(current []domain.Prompt) ([]domain.Prompt, bool) {
 	h.past = append(h.past, current)
 	return next, true
 }
+
+// Rebase wendet rebase auf jeden Snapshot (past und future) an, damit
+// Undo/Redo nach einem Merge fremde Änderungen nicht wieder entfernt.
+func (h *History) Rebase(rebase func([]domain.Prompt) []domain.Prompt) {
+	for _, stack := range [][][]domain.Prompt{h.past, h.future} {
+		for i := range stack {
+			stack[i] = rebase(stack[i])
+		}
+	}
+}

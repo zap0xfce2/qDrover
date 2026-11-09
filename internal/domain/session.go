@@ -22,7 +22,7 @@ type SentHistoryEntry struct {
 }
 
 // MaxSentHistoryEntries begrenzt Session.SentHistory (FIFO, älteste zuerst raus).
-const MaxSentHistoryEntries = 5
+const MaxSentHistoryEntries = 10
 
 func (s Session) IsPlanModeActive() bool {
 	return s.PlanModeActive == nil || *s.PlanModeActive

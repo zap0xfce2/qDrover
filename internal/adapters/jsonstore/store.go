@@ -74,6 +74,11 @@ func (s *FileStore) ListSessions() ([]domain.Session, error) {
 			fmt.Fprintf(os.Stderr, "qdrover: session %s konnte nicht geladen werden: %v\n", id, err)
 			continue
 		}
+		if board.Session.ID != id {
+			// Über die innere ID wäre die Datei später nicht mehr ladbar.
+			fmt.Fprintf(os.Stderr, "qdrover: session %s übersprungen: innere ID %q passt nicht zum Dateinamen\n", id, board.Session.ID)
+			continue
+		}
 		sessions = append(sessions, board.Session)
 	}
 	return sessions, nil

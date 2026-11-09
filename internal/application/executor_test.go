@@ -8,6 +8,21 @@ import (
 	"qdrover/internal/ports"
 )
 
+type fakeStore struct {
+	boards map[domain.SessionID]domain.Board
+	merged *domain.Board
+}
+
+func newFakeStore() *fakeStore { return &fakeStore{boards: map[domain.SessionID]domain.Board{}} }
+
+func (s *fakeStore) Save(board domain.Board) (domain.Board, error) {
+	s.boards[board.Session.ID] = board
+	if s.merged != nil {
+		return *s.merged, nil
+	}
+	return board, nil
+}
+
 type fakeHerdr struct {
 	current        string
 	neighbor       string
@@ -35,7 +50,7 @@ func TestExecutor_SendDispatch_DiscoversNeighborThenSendsPrompt(t *testing.T) {
 	}
 	executor := NewExecutor(store, herdr)
 
-	err := executor.Execute(context.Background(), []Effect{
+	_, err := executor.Execute(context.Background(), []Effect{
 		SendDispatch{Direction: ports.DirectionUp, Text: "mein prompt"},
 	})
 	if err != nil {
@@ -54,7 +69,7 @@ func TestExecutor_SendDispatch_WithPrefixCommands_PassesPrefixesToGateway(t *tes
 	herdr := &fakeHerdr{current: "pane-self"}
 	executor := NewExecutor(store, herdr)
 
-	err := executor.Execute(context.Background(), []Effect{
+	_, err := executor.Execute(context.Background(), []Effect{
 		SendDispatch{Text: "mein prompt", PrefixCommands: []string{"/clear", "/plan"}},
 	})
 	if err != nil {
@@ -71,7 +86,7 @@ func TestExecutor_SendDispatch_WithoutPrefixCommands_PassesEmptyPrefixesToGatewa
 	herdr := &fakeHerdr{current: "pane-self"}
 	executor := NewExecutor(store, herdr)
 
-	err := executor.Execute(context.Background(), []Effect{
+	_, err := executor.Execute(context.Background(), []Effect{
 		SendDispatch{Text: "mein prompt"},
 	})
 	if err != nil {
@@ -88,11 +103,25 @@ func TestExecutor_PersistBoard_SavesToStore(t *testing.T) {
 	executor := NewExecutor(store, herdr)
 
 	board := domain.Board{Session: domain.Session{ID: "s1"}}
-	err := executor.Execute(context.Background(), []Effect{PersistBoard{Board: board}})
+	_, err := executor.Execute(context.Background(), []Effect{PersistBoard{Board: board}})
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
 	if _, ok := store.boards["s1"]; !ok {
 		t.Fatal("erwarte gespeicherte Session s1")
+	}
+}
+
+func TestExecutor_PersistBoard_ReturnsMergedBoard(t *testing.T) {
+	store := newFakeStore()
+	store.merged = &domain.Board{Prompts: []domain.Prompt{{ID: "von-draussen"}}}
+	executor := NewExecutor(store, &fakeHerdr{})
+
+	merged, err := executor.Execute(context.Background(), []Effect{PersistBoard{Board: domain.Board{}}})
+	if err != nil {
+		t.Fatalf("unerwarteter Fehler: %v", err)
+	}
+	if merged == nil || merged.Prompts[0].ID != "von-draussen" {
+		t.Fatalf("erwarte gemergtes Board, habe %v", merged)
 	}
 }
