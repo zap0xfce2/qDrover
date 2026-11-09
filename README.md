@@ -157,3 +157,4 @@ Alte Sessions (`~/.local/state/qdrover/sessions/*.json`) werden beim ersten Star
 ## Roadmap
 
 - Session-Migration (alte `sessions/*.json` → `global.json`) in der nächsten Version entfernen
+- Screenshot `img/snapshot1.png` neu aufnehmen (aktuelle Ansicht mit Reitern und Version oben rechts)
