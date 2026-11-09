@@ -540,3 +540,16 @@ func TestReduce_ApplyMerged_KeepsSoftDeletedForRestore(t *testing.T) {
 		t.Fatalf("erwarte erfolgreiches Restore, err=%v prompts=%+v", err, state.Board.Prompts)
 	}
 }
+
+func TestReduce_CreatePrompt_InvisibleNewPrompt_FocusStaysVisible(t *testing.T) {
+	focus := domain.PromptID("g1")
+	state := AppState{
+		Board: scopedFixtureBoard(), FocusedID: &focus, History: NewHistory(50),
+		Visible: func(p domain.Prompt) bool { return !p.IsLocal() },
+	}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "x", Scope: domain.ScopeLocal}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if state.FocusedID == nil || *state.FocusedID != "g1" {
+		t.Fatalf("erwarte Fokus g1, habe %v", state.FocusedID)
+	}
+}

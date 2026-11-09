@@ -11,13 +11,18 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 	switch a := action.(type) {
 	case CreatePrompt:
 		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		newID := ids.NewPromptID()
 		state.Board = state.Board.AddScopedPrompt(newID, a.Content, a.Scope, clock.Now())
 		if a.Marked {
 			// Domain-Toggle statt Reduce: ein Undo-Schritt pro Aktion
 			state.Board, _ = state.Board.ToggleMarked(newID)
 		}
-		state.FocusedID = &newID
+		if indexOfFocused(VisibleLive(state), &newID) >= 0 {
+			state.FocusedID = &newID
+		} else {
+			state = reconcileFocus(state, prevIndex)
+		}
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case EditPrompt:
