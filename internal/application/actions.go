@@ -16,6 +16,11 @@ type CreatePrompt struct {
 // ApplyMerged ersetzt das Board durch das Ergebnis eines Merge mit dem
 // Dateistand (siehe domain-Merge); kein Undo-Schritt, keine Effects.
 type ApplyMerged struct{ Board domain.Board }
+
+// Refresh gleicht das Board mit den Dateien ab (Save mergt und liefert den
+// Stand von außen zurück); ausgelöst, wenn ein anderer Prozess Prompts schrieb.
+type Refresh struct{}
+
 type EditPrompt struct {
 	ID      domain.PromptID
 	Content string
@@ -44,6 +49,7 @@ type RecordSentText struct{ Text string }
 
 func (CreatePrompt) isAction()    {}
 func (ApplyMerged) isAction()     {}
+func (Refresh) isAction()         {}
 func (EditPrompt) isAction()      {}
 func (DeletePrompt) isAction()    {}
 func (RestorePrompt) isAction()   {}

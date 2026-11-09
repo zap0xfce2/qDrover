@@ -143,6 +143,10 @@ func (m Model) recordSentHistory(effects []application.Effect) Model {
 	return m
 }
 
+// RefreshMsg fordert einen Abgleich mit den Dateien an (z. B. nach qdrover add
+// aus einem anderen Prozess, signalisiert per SIGUSR1).
+type RefreshMsg struct{}
+
 // sendResultMsg trägt das Ergebnis eines im Hintergrund per sendCmd
 // ausgeführten Herdr-Versands zurück in Update.
 type sendResultMsg struct {
@@ -228,6 +232,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			next = nm.syncScroll()
 		}
 		return next, cmd
+	case RefreshMsg:
+		return m.dispatch(application.Refresh{}).syncScroll(), nil
 	case sendResultMsg:
 		m.sending = false
 		if msg.err != nil {

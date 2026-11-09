@@ -116,6 +116,9 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		state.Board.Session = state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: clock.Now(), Text: a.Text})
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
+	case Refresh:
+		return state, []Effect{PersistBoard{Board: state.Board}}, nil
+
 	case ApplyMerged:
 		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		state.History.Rebase(rebaseOnto(state.Board.Prompts, a.Board.Prompts))

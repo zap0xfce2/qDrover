@@ -23,6 +23,8 @@ func run(args []string) error {
 	switch args[0] {
 	case "send":
 		return runSend(args[1:], os.Stdin)
+	case "add":
+		return runAddCommand(args[1:], os.Stdin, os.Stdout)
 	case "-h", "--help":
 		printUsage(os.Stdout)
 		return nil
@@ -33,5 +35,5 @@ func run(args []string) error {
 
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "qDrover — Board mit Herdr-Dispatch-Sender")
-	fmt.Fprintln(w, "\nUsage:\n  qdrover\n  qdrover send [query] [--direction up|down|left|right]")
+	fmt.Fprintln(w, "\nUsage:\n  qdrover\n  qdrover send [query] [--direction up|down|left|right]\n  qdrover add [prompt]   (lokaler Prompt in ./qdrover.json, Text auch über stdin)")
 }
