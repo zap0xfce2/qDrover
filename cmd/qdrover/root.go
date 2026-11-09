@@ -120,6 +120,11 @@ func runTUI() error {
 
 	model := ui.New(state, executor, clock, ids, clip).WithVersion(version)
 	p := tea.NewProgram(model, tea.WithAltScreen())
+	stopListening, err := listenForRefresh(filepath.Join(stateRoot, runDirName), os.Getpid(), func() { p.Send(ui.RefreshMsg{}) })
+	if err != nil {
+		return err
+	}
+	defer stopListening()
 	_, err = p.Run()
 	return err
 }

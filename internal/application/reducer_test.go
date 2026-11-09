@@ -615,3 +615,16 @@ func TestReduce_UndoOwnDeleteAfterApplyMerged_RestoresPrompt(t *testing.T) {
 		t.Fatalf("erwarte x+foreign, habe %+v", state.Board.LivePrompts())
 	}
 }
+
+func TestReduce_Refresh_PersistsCurrentBoardWithoutHistory(t *testing.T) {
+	board := domain.Board{}.AddPrompt("p1", "idee", 1)
+	state := AppState{Board: board, History: NewHistory(50)}
+
+	next, effects, _ := Reduce(state, Refresh{}, fakeClock{now: 1}, &fakeIDGen{})
+
+	persist, ok := effects[0].(PersistBoard)
+	_, undoable := next.History.Undo(nil)
+	if !ok || len(persist.Board.Prompts) != 1 || undoable {
+		t.Fatalf("erwarte PersistBoard mit aktuellem Board und keinen Undo-Eintrag, habe %+v", effects)
+	}
+}

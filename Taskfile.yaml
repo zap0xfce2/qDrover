@@ -8,7 +8,7 @@ vars:
 
 tasks:
   install:
-    desc: Passendes Binary für diese Plattform aus dist/ nach ~/bin/qdrover installieren
+    desc: Passendes Binary für diese Plattform nach ~/bin/qdrover und den Skill nach ~/.claude/skills installieren
     deps: [dist-build]
     vars:
       BINARY: dist/qdrover_{{OS}}_{{ARCH}}
@@ -18,6 +18,8 @@ tasks:
     cmds:
       - mkdir -p $HOME/bin
       - cp {{.BINARY}} $HOME/bin/qdrover
+      - mkdir -p $HOME/.claude/skills/qdrover-roadmap
+      - cp skills/qdrover-roadmap/SKILL.md $HOME/.claude/skills/qdrover-roadmap/SKILL.md
 
   dist-build:
     desc: Cross-Builds nach dist/ (Linux amd64, macOS arm64) — nicht installiert

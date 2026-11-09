@@ -135,6 +135,16 @@ qdrover send [query] [--direction up|down|left|right]
 
 Sendet einen einzelnen Prompt an eine Herdr-Pane, ohne das TUI zu öffnen. Die Query kommt aus den Argumenten oder, falls keine übergeben werden, aus stdin. `--direction` bestimmt die Ziel-Pane relativ zur aktuellen (Default: leer). Dieser Befehl kennt keinen Plan-/Clear-Präfix — den gibt es nur im TUI.
 
+```
+qdrover add [prompt]
+```
+
+Legt einen lokalen Prompt in `qdrover.json` im aktuellen Verzeichnis an (Text aus den Argumenten oder stdin). Ein Prompt mit gleichem Text wird übersprungen (`bereits vorhanden`). Laufende qDrover-TUIs bekommen das sofort mit und zeigen den Prompt im Reiter Lokal.
+
+### Claude-Code-Skill `qdrover-roadmap`
+
+`task install` installiert zusätzlich den Skill nach `~/.claude/skills/qdrover-roadmap/`. Sagt man in Claude Code z. B. „mach aus der Roadmap Prompts“, sucht Claude die Roadmap des Projekts (README, `ROADMAP.md`, `CLAUDE.md`, …), formuliert pro offenem Thema einen eigenständigen Prompt und legt ihn per `qdrover add` an.
+
 ## Datenablage
 
 - **Global:** `~/.local/state/qdrover/global.json` — globale Prompts plus persönlicher Zustand (Plan-/Clear-Modus, Log, Fixierungen auch lokaler Prompts).
@@ -147,4 +157,3 @@ Alte Sessions (`~/.local/state/qdrover/sessions/*.json`) werden beim ersten Star
 ## Roadmap
 
 - Session-Migration (alte `sessions/*.json` → `global.json`) in der nächsten Version entfernen
-- Skill: Prompts aus Roadmap-Themen in `qdrover.json` erzeugen
