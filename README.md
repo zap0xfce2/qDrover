@@ -145,7 +145,13 @@ Legt einen lokalen Prompt in `qdrover.json` im aktuellen Verzeichnis an (Text au
 
 ### Claude-Code-Skill `qdrover-roadmap`
 
-`task install` installiert zusätzlich den Skill nach `~/.claude/skills/qdrover-roadmap/`. Sagt man in Claude Code z. B. „mach aus der Roadmap Prompts“, sucht Claude die Roadmap des Projekts (README, `ROADMAP.md`, `CLAUDE.md`, …), formuliert pro offenem Thema einen eigenständigen Prompt und legt ihn per `qdrover add` an.
+`task install` installiert zusätzlich den Skill nach `~/.claude/skills/qdrover-roadmap/`. Sagt man in Claude Code z. B. „mach aus der Roadmap Prompts“, sucht Claude die Roadmap des Projekts (README, `ROADMAP.md`, `CLAUDE.md`, …), formuliert pro offenem Thema einen eigenständigen Prompt und legt ihn per `qdrover add` an. Gestrichene oder erledigte Themen entfernt er per `qdrover remove` wieder aus der Liste.
+
+```
+qdrover remove <id>
+```
+
+Löscht den lokalen Prompt mit dieser ID (siehe `qdrover.json`) und stößt laufende TUIs wie bei `add` an. Globale Prompts lassen sich so nicht löschen.
 
 ## Datenablage
 
