@@ -105,7 +105,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 |---|---|
 | `shift`+`↑`/`↓`/`←`/`→` | senden, Prompt bleibt in der Liste |
 | `s` | nach oben senden, Prompt wird danach entfernt (Undo-fähig) |
-| `leertaste` | Prompt markieren/entmarkieren (cyan) — überstimmt Löschen bei `s` |
+| `leertaste` | Prompt fixieren/lösen (cyan, erscheint im Reiter Fixiert) — überstimmt Löschen bei `s` |
 | `p` | Plan-Modus umschalten (Ziel bekommt vor jedem Send erst `/plan`) |
 | `c` | Clear-Modus umschalten (Ziel bekommt vor dem nächsten Send erst `/clear`, schaltet sich nach erfolgreichem Senden automatisch wieder ab) |
 
