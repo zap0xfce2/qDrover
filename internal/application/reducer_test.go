@@ -450,3 +450,93 @@ func TestReduce_Undo_ClearsFocusForPromptThatNoLongerExistsAfterUndo(t *testing.
 		t.Fatalf("erwarte FocusedID=nil nach Undo des CreatePrompt, habe %v", *state.FocusedID)
 	}
 }
+
+func scopedFixtureBoard() domain.Board {
+	return domain.Board{Prompts: []domain.Prompt{
+		{ID: "g1", Position: 0},
+		{ID: "l1", Position: 1, Scope: domain.ScopeLocal},
+		{ID: "g2", Position: 2},
+	}}
+}
+
+func TestReduce_CreatePrompt_UsesScopeAndMarked(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "x", Scope: domain.ScopeLocal, Marked: true}, fakeClock{now: 100}, &fakeIDGen{})
+
+	got := state.Board.LivePrompts()[0]
+	if !got.IsLocal() || !got.Marked {
+		t.Fatalf("erwarte lokal+markiert, habe %+v", got)
+	}
+}
+
+func TestReduce_CreatePrompt_MarkedPushesSingleHistoryEntry(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "x", Marked: true}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if len(state.History.past) != 1 {
+		t.Fatalf("erwarte 1 History-Eintrag, habe %d", len(state.History.past))
+	}
+}
+
+func TestReduce_DeleteFocused_FocusStaysInVisibleSet(t *testing.T) {
+	focus := domain.PromptID("g2")
+	state := AppState{
+		Board: scopedFixtureBoard(), FocusedID: &focus, History: NewHistory(50),
+		Visible: func(p domain.Prompt) bool { return !p.IsLocal() },
+	}
+	state, _, _ = Reduce(state, DeletePrompt{ID: "g2"}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if state.FocusedID == nil || *state.FocusedID != "g1" {
+		t.Fatalf("erwarte Fokus g1, habe %v", state.FocusedID)
+	}
+}
+
+func TestReduce_ToggleMarked_LastVisibleUnmarked_FocusNil(t *testing.T) {
+	focus := domain.PromptID("a")
+	state := AppState{
+		Board:     domain.Board{Prompts: []domain.Prompt{{ID: "a", Marked: true}, {ID: "b", Position: 1}}},
+		FocusedID: &focus, History: NewHistory(50),
+		Visible: func(p domain.Prompt) bool { return p.Marked },
+	}
+	state, _, _ = Reduce(state, ToggleMarked{ID: "a"}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if state.FocusedID != nil {
+		t.Fatalf("erwarte FocusedID=nil, habe %v", *state.FocusedID)
+	}
+}
+
+func TestReduce_SendSelection_IgnoresFocusOutsideVisible(t *testing.T) {
+	focus := domain.PromptID("l1")
+	state := AppState{
+		Board: scopedFixtureBoard(), FocusedID: &focus,
+		Visible: func(p domain.Prompt) bool { return !p.IsLocal() },
+	}
+	_, _, err := Reduce(state, SendSelectionToPane{}, fakeClock{}, &fakeIDGen{})
+
+	if err != ErrNoPromptToSend {
+		t.Fatalf("erwarte ErrNoPromptToSend, habe %v", err)
+	}
+}
+
+func TestVisibleLive_GlobalBeforeLocal(t *testing.T) {
+	got := VisibleLive(AppState{Board: scopedFixtureBoard()})
+
+	if got[0].ID != "g1" || got[1].ID != "g2" || got[2].ID != "l1" {
+		t.Fatalf("erwarte g1,g2,l1, habe %+v", got)
+	}
+}
+
+func TestReduce_ApplyMerged_KeepsSoftDeletedForRestore(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	clock, ids := fakeClock{now: 100}, &fakeIDGen{}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "x"}, clock, ids)
+	id := *state.FocusedID
+	state, _, _ = Reduce(state, DeletePrompt{ID: id}, clock, ids)
+
+	state, _, _ = Reduce(state, ApplyMerged{Board: domain.Board{}}, clock, ids)
+	state, _, err := Reduce(state, RestorePrompt{ID: id}, clock, ids)
+
+	if err != nil || len(state.Board.LivePrompts()) != 1 {
+		t.Fatalf("erwarte erfolgreiches Restore, err=%v prompts=%+v", err, state.Board.Prompts)
+	}
+}

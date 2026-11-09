@@ -7,7 +7,15 @@ import (
 
 type Action interface{ isAction() }
 
-type CreatePrompt struct{ Content string }
+type CreatePrompt struct {
+	Content string
+	Scope   domain.Scope
+	Marked  bool
+}
+
+// ApplyMerged ersetzt das Board durch das Ergebnis eines Merge mit dem
+// Dateistand (siehe domain-Merge); kein Undo-Schritt, keine Effects.
+type ApplyMerged struct{ Board domain.Board }
 type EditPrompt struct {
 	ID      domain.PromptID
 	Content string
@@ -35,6 +43,7 @@ type ToggleClearMode struct{}
 type RecordSentText struct{ Text string }
 
 func (CreatePrompt) isAction()    {}
+func (ApplyMerged) isAction()     {}
 func (EditPrompt) isAction()      {}
 func (DeletePrompt) isAction()    {}
 func (RestorePrompt) isAction()   {}

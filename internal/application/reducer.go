@@ -12,13 +12,17 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 	case CreatePrompt:
 		state.History.Push(state.Board.Prompts)
 		newID := ids.NewPromptID()
-		state.Board = state.Board.AddPrompt(newID, a.Content, clock.Now())
+		state.Board = state.Board.AddScopedPrompt(newID, a.Content, a.Scope, clock.Now())
+		if a.Marked {
+			// Domain-Toggle statt Reduce: ein Undo-Schritt pro Aktion
+			state.Board, _ = state.Board.ToggleMarked(newID)
+		}
 		state.FocusedID = &newID
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case EditPrompt:
 		state.History.Push(state.Board.Prompts)
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		b, err := state.Board.EditPrompt(a.ID, a.Content, clock.Now())
 		if err != nil {
 			return state, nil, err
@@ -29,7 +33,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case DeletePrompt:
 		state.History.Push(state.Board.Prompts)
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		b, err := state.Board.DeletePrompt(a.ID, clock.Now())
 		if err != nil {
 			return state, nil, err
@@ -48,7 +52,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case MovePrompt:
 		state.History.Push(state.Board.Prompts)
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		b, err := state.Board.MovePrompt(a.ID, a.To, clock.Now())
 		if err != nil {
 			return state, nil, err
@@ -64,7 +68,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case ToggleMarked:
 		state.History.Push(state.Board.Prompts)
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		b, err := state.Board.ToggleMarked(a.ID)
 		if err != nil {
 			return state, nil, err
@@ -74,7 +78,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case Undo:
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		prevPrompts, ok := state.History.Undo(state.Board.Prompts)
 		if !ok {
 			return state, nil, nil
@@ -84,7 +88,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
 	case Redo:
-		prevIndex := indexOfFocused(state.Board.LivePrompts(), state.FocusedID)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		nextPrompts, ok := state.History.Redo(state.Board.Prompts)
 		if !ok {
 			return state, nil, nil
@@ -106,6 +110,11 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 	case RecordSentText:
 		state.Board.Session = state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: clock.Now(), Text: a.Text})
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
+
+	case ApplyMerged:
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
+		state.Board = mergeKeepingSoftDeleted(state.Board, a.Board)
+		return reconcileFocus(state, prevIndex), nil, nil
 
 	case SendSelectionToPane:
 		text, id, err := collectTextToSend(state)
@@ -140,7 +149,7 @@ func reconcileFocus(state AppState, prevIndex int) AppState {
 	if state.FocusedID == nil {
 		return state
 	}
-	live := state.Board.LivePrompts()
+	live := VisibleLive(state)
 	for _, t := range live {
 		if t.ID == *state.FocusedID {
 			return state
@@ -169,10 +178,44 @@ func collectTextToSend(state AppState) (string, domain.PromptID, error) {
 	if state.FocusedID == nil {
 		return "", "", ErrNoPromptToSend
 	}
-	for _, t := range state.Board.LivePrompts() {
+	for _, t := range VisibleLive(state) {
 		if t.ID == *state.FocusedID {
 			return t.Content, t.ID, nil
 		}
 	}
 	return "", "", ErrNoPromptToSend
+}
+
+// VisibleLive liefert die lebenden, sichtbaren Prompts: globale vor lokalen,
+// innerhalb nach Position.
+func VisibleLive(state AppState) []domain.Prompt {
+	var global, local []domain.Prompt
+	for _, p := range state.Board.LivePrompts() {
+		if state.Visible != nil && !state.Visible(p) {
+			continue
+		}
+		if p.IsLocal() {
+			local = append(local, p)
+		} else {
+			global = append(global, p)
+		}
+	}
+	return append(global, local...)
+}
+
+// mergeKeepingSoftDeleted behält soft-gelöschte Prompts des alten Boards, die
+// im Merge fehlen, damit RestorePrompt nach fehlgeschlagenem Senden greift.
+func mergeKeepingSoftDeleted(current, merged domain.Board) domain.Board {
+	known := make(map[domain.PromptID]bool, len(merged.Prompts))
+	for _, p := range merged.Prompts {
+		known[p.ID] = true
+	}
+	prompts := append([]domain.Prompt{}, merged.Prompts...)
+	for _, p := range current.Prompts {
+		if !p.IsLive() && !known[p.ID] {
+			prompts = append(prompts, p)
+		}
+	}
+	merged.Prompts = prompts
+	return merged
 }
