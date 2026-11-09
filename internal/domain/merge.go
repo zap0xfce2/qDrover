@@ -66,7 +66,8 @@ func resolveOne(id PromptID, base, mine, theirs map[PromptID]Prompt) (Prompt, bo
 
 func changedByMe(base Prompt, inBase bool, mine Prompt, inMine bool) bool {
 	if !inBase {
-		return inMine
+		// Grabstein ohne Basis-Eintrag: Löschung ist schon gemergt, kein neuer Änderungswunsch.
+		return inMine && mine.IsLive()
 	}
 	if !inMine {
 		return true

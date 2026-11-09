@@ -77,6 +77,20 @@ func TestMergePrompts_MySoftDeleteWins(t *testing.T) {
 	}
 }
 
+// Ein Soft-Delete, den die Basis nicht mehr kennt, ist ein alter Grabstein
+// (UI behält ihn für Undo) — er darf einen wieder angelegten Prompt nicht löschen.
+func TestMergePrompts_StaleTombstoneKeepsTheirPrompt(t *testing.T) {
+	deletedAt := Timestamp(5)
+	tombstone := mk("a", "")
+	tombstone.DeletedAt = &deletedAt
+
+	got := MergePrompts(nil, []Prompt{tombstone}, []Prompt{mk("a", "")})
+
+	if want := []PromptID{"a"}; !reflect.DeepEqual(ids(got), want) {
+		t.Fatalf("erwarte %v, habe %v", want, ids(got))
+	}
+}
+
 func TestMergeSession_SentHistoryIsUnionCappedAtFive(t *testing.T) {
 	mine := Session{SentHistory: []SentHistoryEntry{{1, "a"}, {3, "c"}, {5, "e"}, {7, "g"}}}
 	theirs := Session{SentHistory: []SentHistoryEntry{{2, "b"}, {4, "d"}, {6, "f"}}}
