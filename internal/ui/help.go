@@ -29,6 +29,9 @@ Im Editor
   enter        speichern & verlassen
   esc          speichern & verlassen
   ctrl+j       neue Zeile einfügen
+  ←/→/↑/↓      Cursor bewegen
+  home/end     Zeilenanfang/-ende (auch ctrl+a/ctrl+e)
+  alt+←/→      wortweise springen
 
 Senden an Herdr-Pane
   shift+↑/↓/←/→  senden, Prompt bleibt in der Liste

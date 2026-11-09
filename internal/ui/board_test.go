@@ -641,8 +641,8 @@ func TestBoardKey_ShiftV_PastesClipboardAsNewPromptInEditMode(t *testing.T) {
 	if m.mode != modeEdit {
 		t.Fatalf("erwarte modeEdit nach 'V', habe %v", m.mode)
 	}
-	if m.editBuf != "aus Zwischenablage" {
-		t.Fatalf("erwarte vorbefüllten editBuf mit Zwischenablageninhalt, habe %q", m.editBuf)
+	if m.editor.Value() != "aus Zwischenablage" {
+		t.Fatalf("erwarte vorbefüllten Editor mit Zwischenablageninhalt, habe %q", m.editor.Value())
 	}
 	if !m.editingNewPrompt {
 		t.Fatal("erwarte editingNewPrompt=true nach 'V'")

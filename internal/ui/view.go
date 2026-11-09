@@ -143,9 +143,7 @@ func (m Model) renderView() string {
 		return m.withVersionBannerAlways(helpText)
 	}
 	if m.mode == modeEdit {
-		// Editor ist append-only, der Cursor steht also immer am Ende des Puffers.
-		wrapped := wrapToWidth(m.editBuf, m.width)
-		return fmt.Sprintf("Bearbeite Prompt:\n%s%s\n\n[Esc: speichern & verlassen]", wrapped, editCursor)
+		return fmt.Sprintf("Bearbeite Prompt:\n%s\n\n[Esc: speichern & verlassen]", m.editor.View())
 	}
 
 	live := m.state.Board.LivePrompts()
@@ -265,9 +263,6 @@ func focusedIndex(live []domain.Prompt, focusedID *domain.PromptID) int {
 	return -1
 }
 
-// editCursor markiert im Edit-Modus die (immer am Ende stehende) Cursor-Position.
-const editCursor = "▋"
-
 // truncateToWidth kürzt s auf width Runen und hängt "…" an, falls gekürzt wurde.
 // width <= 0 bedeutet "kein WindowSizeMsg empfangen" — dann unverändert
 // zurückgeben (ansi.Truncate(s, 0, ...) würde sonst "" liefern).
@@ -276,18 +271,6 @@ func truncateToWidth(s string, width int) string {
 		return s
 	}
 	return ansi.Truncate(s, width, "…")
-}
-
-// wrapToWidth bricht s bei width Runen pro Zeile um (Wortumbruch, keine
-// Kürzung — anders als truncateToWidth, das für den Editor ungeeignet wäre).
-// Bestehende Zeilenumbrüche (z. B. von Enter) bleiben als Absatzgrenzen
-// erhalten. width <= 0 bedeutet "kein WindowSizeMsg empfangen" — dann
-// unverändert zurückgeben.
-func wrapToWidth(s string, width int) string {
-	if width <= 0 {
-		return s
-	}
-	return ansi.Wrap(s, width, "")
 }
 
 // anchoredWindow liefert den [start, end)-Ausschnitt eines vim-artig

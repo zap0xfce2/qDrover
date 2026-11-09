@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -8,28 +9,6 @@ import (
 	"qdrover/internal/application"
 	"qdrover/internal/domain"
 )
-
-func TestTrimLastGrapheme_RemovesSingleRuneCharacter(t *testing.T) {
-	got := trimLastGrapheme("abc")
-	if got != "ab" {
-		t.Fatalf("erwarte 'ab', habe %q", got)
-	}
-}
-
-func TestTrimLastGrapheme_RemovesMultiCodepointEmoji(t *testing.T) {
-	// "🇩🇪" besteht aus zwei Codepoints, ist aber ein Grapheme-Cluster
-	got := trimLastGrapheme("a🇩🇪")
-	if got != "a" {
-		t.Fatalf("erwarte 'a', habe %q", got)
-	}
-}
-
-func TestTrimLastGrapheme_EmptyStringStaysEmpty(t *testing.T) {
-	got := trimLastGrapheme("")
-	if got != "" {
-		t.Fatalf("erwarte leeren String, habe %q", got)
-	}
-}
 
 func TestEditFlow_NewPrompt_TypeThenEscape_PersistsToNewPromptNotOldFocus(t *testing.T) {
 	// eigene IDs (nicht "t1"/"t2"), damit sie nicht mit der vom fakeIDGen
@@ -113,7 +92,7 @@ func TestHandleEditKey_Enter_CommitsAndLeavesEditMode(t *testing.T) {
 	m = updated.(Model)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // in Edit-Modus wechseln
 	m = updated.(Model)
-	m.editBuf = "" // vorbefüllten Inhalt für den Test ignorieren
+	m.editor.SetValue("") // vorbefüllten Inhalt für den Test ignorieren
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("!")})
 	m = updated.(Model)
@@ -136,7 +115,7 @@ func TestHandleEditKey_CtrlJ_InsertsNewline(t *testing.T) {
 	m = updated.(Model)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // in Edit-Modus wechseln
 	m = updated.(Model)
-	m.editBuf = "" // vorbefüllten Inhalt für den Test ignorieren
+	m.editor.SetValue("") // vorbefüllten Inhalt für den Test ignorieren
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	m = updated.(Model)
@@ -145,22 +124,22 @@ func TestHandleEditKey_CtrlJ_InsertsNewline(t *testing.T) {
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
 	m = updated.(Model)
 
-	if m.editBuf != "a\nb" {
-		t.Fatalf("erwarte editBuf 'a\\nb', habe %q", m.editBuf)
+	if m.editor.Value() != "a\nb" {
+		t.Fatalf("erwarte Editor-Inhalt 'a\\nb', habe %q", m.editor.Value())
 	}
 	if m.mode != modeEdit {
 		t.Fatalf("erwarte weiterhin modeEdit nach Ctrl+J, habe %v", m.mode)
 	}
 }
 
-func TestHandleEditKey_KeySpace_AppendsSpaceToEditBuf(t *testing.T) {
+func TestHandleEditKey_KeySpace_InsertsSpace(t *testing.T) {
 	m := newTestModel()
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // in Edit-Modus wechseln
 	m = updated.(Model)
-	m.editBuf = "" // vorbefüllten Inhalt für den Test ignorieren
+	m.editor.SetValue("") // vorbefüllten Inhalt für den Test ignorieren
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	m = updated.(Model)
@@ -169,8 +148,8 @@ func TestHandleEditKey_KeySpace_AppendsSpaceToEditBuf(t *testing.T) {
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
 	m = updated.(Model)
 
-	if m.editBuf != "a b" {
-		t.Fatalf("erwarte editBuf 'a b', habe %q", m.editBuf)
+	if m.editor.Value() != "a b" {
+		t.Fatalf("erwarte Editor-Inhalt 'a b', habe %q", m.editor.Value())
 	}
 }
 
@@ -192,5 +171,64 @@ func TestEditFlow_TypeThenEscape_PersistsContentToFocusedPrompt(t *testing.T) {
 	live := m.state.Board.LivePrompts()
 	if live[0].Content != "erste Idee!" {
 		t.Fatalf("erwarte 'erste Idee!', habe %q", live[0].Content)
+	}
+}
+
+// editFocusedPrompt öffnet den Edit-Modus für t1 ("erste Idee"), Cursor am Ende.
+func editFocusedPrompt(t *testing.T) Model {
+	t.Helper()
+	m := newTestModel()
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(Model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	return updated.(Model)
+}
+
+func sendKeys(m Model, keys ...tea.KeyMsg) Model {
+	for _, k := range keys {
+		updated, _ := m.Update(k)
+		m = updated.(Model)
+	}
+	return m
+}
+
+func TestHandleEditKey_LeftArrow_InsertsBeforeCursor(t *testing.T) {
+	m := editFocusedPrompt(t)
+
+	m = sendKeys(m, tea.KeyMsg{Type: tea.KeyLeft}, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("X")})
+
+	if m.editor.Value() != "erste IdeXe" {
+		t.Fatalf("erwarte 'erste IdeXe', habe %q", m.editor.Value())
+	}
+}
+
+func TestHandleEditKey_Home_InsertsAtLineStart(t *testing.T) {
+	m := editFocusedPrompt(t)
+
+	m = sendKeys(m, tea.KeyMsg{Type: tea.KeyHome}, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("X")})
+
+	if m.editor.Value() != "Xerste Idee" {
+		t.Fatalf("erwarte 'Xerste Idee', habe %q", m.editor.Value())
+	}
+}
+
+func TestHandleEditKey_BackspaceAfterLeftArrow_DeletesMidText(t *testing.T) {
+	m := editFocusedPrompt(t)
+
+	m = sendKeys(m, tea.KeyMsg{Type: tea.KeyLeft}, tea.KeyMsg{Type: tea.KeyLeft}, tea.KeyMsg{Type: tea.KeyBackspace})
+
+	if m.editor.Value() != "erste Iee" {
+		t.Fatalf("erwarte 'erste Iee', habe %q", m.editor.Value())
+	}
+}
+
+func TestHandleEditKey_LongContent_NotTruncated(t *testing.T) {
+	m := editFocusedPrompt(t)
+	long := strings.Repeat("x", 1000)
+
+	m = sendKeys(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(long)})
+
+	if m.editor.Value() != "erste Idee"+long {
+		t.Fatalf("erwarte ungekürzten Inhalt (%d Zeichen), habe %d", len("erste Idee"+long), len(m.editor.Value()))
 	}
 }

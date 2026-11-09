@@ -3,58 +3,78 @@ package ui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rivo/uniseg"
+	"github.com/charmbracelet/lipgloss"
 
 	"qdrover/internal/application"
 )
 
-func trimLastGrapheme(s string) string {
-	if s == "" {
-		return s
+// editChromeLines: Überschrift, Leerzeile und Hinweiszeile rund um das Editfeld.
+const editChromeLines = 3
+
+// defaultEditorHeight gilt, solange noch kein WindowSizeMsg kam (z. B. in Tests).
+const defaultEditorHeight = 10
+
+// newEditor baut ein schlichtes, unbegrenztes Editfeld ohne Rahmen/Zeilennummern.
+// Enter ist bewusst nicht "neue Zeile" (speichert, siehe handleEditKey), das übernimmt ctrl+j.
+func newEditor() textarea.Model {
+	ta := textarea.New()
+	ta.Prompt = ""
+	ta.Placeholder = ""
+	ta.ShowLineNumbers = false
+	ta.CharLimit = 0
+	ta.MaxHeight = 0
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ta.KeyMap.InsertNewline = key.NewBinding(key.WithKeys("ctrl+j"))
+	// Statischer Cursor: Blinken bräuchte einen laufenden Tick-Cmd, ohne bleibt er sonst hängen.
+	ta.Cursor.SetMode(cursor.CursorStatic)
+	ta.Focus()
+	return ta
+}
+
+// startEdit wechselt in den Edit-Modus mit content vorbefüllt, Cursor am Ende.
+func (m Model) startEdit(content string, isNewPrompt bool) Model {
+	m.mode = modeEdit
+	m.editingNewPrompt = isNewPrompt
+	m.editor = newEditor()
+	m.editor.SetValue(content)
+	return m.resizeEditor()
+}
+
+func (m Model) resizeEditor() Model {
+	height := defaultEditorHeight
+	if m.height > 0 {
+		height = max(m.height-editChromeLines, 1)
 	}
-	var lastBoundary int
-	state := -1
-	rest := s
-	pos := 0
-	for len(rest) > 0 {
-		var cluster string
-		cluster, rest, _, state = uniseg.StepString(rest, state)
-		lastBoundary = pos
-		pos += len(cluster)
+	m.editor.SetHeight(height)
+	if m.width > 0 {
+		m.editor.SetWidth(m.width)
 	}
-	return s[:lastBoundary]
+	return m
 }
 
 func (m Model) handleEditKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
-	case tea.KeyEsc, tea.KeyEnter:
+	if msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter {
 		return m.commitEdit(), nil
-	case tea.KeyCtrlJ:
-		m.editBuf += "\n"
-		return m, nil
-	case tea.KeyBackspace:
-		m.editBuf = trimLastGrapheme(m.editBuf)
-		return m, nil
-	case tea.KeyRunes:
-		m.editBuf += string(msg.Runes)
-		return m, nil
-	case tea.KeySpace:
-		m.editBuf += " "
-		return m, nil
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.editor, cmd = m.editor.Update(msg)
+	return m, cmd
 }
 
 // commitEdit speichert den Editor-Inhalt und verlässt den Edit-Modus (löscht
 // stattdessen bei leerem, neu angelegtem Prompt) — genutzt von Enter und Esc.
 func (m Model) commitEdit() Model {
 	m.mode = modeBoard
+	content := m.editor.Value()
 	if m.state.FocusedID != nil {
-		if m.editingNewPrompt && strings.TrimSpace(m.editBuf) == "" {
+		if m.editingNewPrompt && strings.TrimSpace(content) == "" {
 			m = m.dispatch(application.DeletePrompt{ID: *m.state.FocusedID})
 		} else {
-			m = m.dispatch(application.EditPrompt{ID: *m.state.FocusedID, Content: m.editBuf})
+			m = m.dispatch(application.EditPrompt{ID: *m.state.FocusedID, Content: content})
 		}
 	}
 	m.editingNewPrompt = false

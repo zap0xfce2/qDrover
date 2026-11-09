@@ -24,16 +24,10 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "up", "k":
 		return m.moveFocus(-1), nil
 	case "enter":
-		m.mode = modeEdit
-		m.editBuf = m.focusedContent()
-		m.editingNewPrompt = false
-		return m, nil
+		return m.startEdit(m.focusedContent(), false), nil
 	case "i":
 		m = m.dispatch(application.CreatePrompt{Content: ""})
-		m.mode = modeEdit
-		m.editBuf = ""
-		m.editingNewPrompt = true
-		return m, nil
+		return m.startEdit("", true), nil
 	case "d":
 		if m.state.FocusedID != nil {
 			m = m.dispatch(application.DeletePrompt{ID: *m.state.FocusedID})
@@ -70,10 +64,7 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m = m.dispatch(application.CreatePrompt{Content: ""})
-		m.mode = modeEdit
-		m.editBuf = content
-		m.editingNewPrompt = true
-		return m, nil
+		return m.startEdit(content, true), nil
 	case "C":
 		if m.state.FocusedID == nil {
 			return m, nil
