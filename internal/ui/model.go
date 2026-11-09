@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"qdrover/internal/application"
@@ -40,7 +41,7 @@ type Model struct {
 	ids       ports.IDGenerator
 	clipboard ports.Clipboard
 	mode      mode
-	editBuf  string
+	editor    textarea.Model
 	// editingNewPrompt: true während der Edit-Session eines frisch mit "i"
 	// angelegten Prompts — steuert, ob ein beim Verlassen des Edit-Modus
 	// noch leerer Prompt automatisch gelöscht wird (siehe handleEditKey).
@@ -210,6 +211,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.mode == modeEdit {
+			m = m.resizeEditor()
+		}
 		return m.syncScroll(), nil
 	case tea.KeyMsg:
 		m.versionBannerDismissed = true

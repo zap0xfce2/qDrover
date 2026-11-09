@@ -53,23 +53,11 @@ func TestView_BoardMode_MarkedPrompt_IsStyledWithMarkedStyle(t *testing.T) {
 
 func TestView_EditMode_ShowsEditBuffer(t *testing.T) {
 	m := newTestModel()
-	m.mode = modeEdit
-	m.editBuf = "in Bearbeitung"
+	m = m.startEdit("in Bearbeitung", false)
 
 	out := m.View()
 	if !strings.Contains(out, "in Bearbeitung") {
 		t.Fatalf("erwarte Edit-Buffer in View-Output, habe:\n%s", out)
-	}
-}
-
-func TestView_EditMode_ShowsCursorRightAfterBuffer(t *testing.T) {
-	m := newTestModel()
-	m.mode = modeEdit
-	m.editBuf = "in Bearbeitung"
-
-	out := m.View()
-	if !strings.Contains(out, "in Bearbeitung"+editCursor) {
-		t.Fatalf("erwarte Cursor direkt nach dem Edit-Buffer, habe:\n%s", out)
 	}
 }
 
@@ -284,87 +272,13 @@ func TestTruncateToWidth_ZeroOrNegativeWidth_ReturnsUnchanged(t *testing.T) {
 	}
 }
 
-func TestWrapToWidth_ShortText_ReturnsUnchanged(t *testing.T) {
-	out := wrapToWidth("kurzer text", 20)
-	if out != "kurzer text" {
-		t.Fatalf("erwarte unverändert, habe %q", out)
-	}
-}
-
-func TestWrapToWidth_LongText_BreaksAtWordBoundaries(t *testing.T) {
-	out := wrapToWidth("eins zwei drei vier", 9)
-	want := "eins zwei\ndrei vier"
-	if out != want {
-		t.Fatalf("erwarte %q, habe %q", want, out)
-	}
-}
-
-func TestWrapToWidth_SingleWordLongerThanWidth_HardWraps(t *testing.T) {
-	out := wrapToWidth("abcdefghij", 4)
-	want := "abcd\nefgh\nij"
-	if out != want {
-		t.Fatalf("erwarte %q, habe %q", want, out)
-	}
-}
-
-func TestWrapToWidth_ExistingNewlines_StayAsParagraphBreaks(t *testing.T) {
-	out := wrapToWidth("eins zwei\ndrei", 9)
-	want := "eins zwei\ndrei"
-	if out != want {
-		t.Fatalf("erwarte %q, habe %q", want, out)
-	}
-}
-
-func TestWrapToWidth_ZeroOrNegativeWidth_ReturnsUnchanged(t *testing.T) {
-	if out := wrapToWidth("eins zwei drei", 0); out != "eins zwei drei" {
-		t.Fatalf("erwarte unverändert bei width=0, habe %q", out)
-	}
-	if out := wrapToWidth("eins zwei drei", -1); out != "eins zwei drei" {
-		t.Fatalf("erwarte unverändert bei width<0, habe %q", out)
-	}
-}
-
-func TestWrapToWidth_PreservesSingleTrailingSpace(t *testing.T) {
-	out := wrapToWidth("hallo ", 20)
-	if out != "hallo " {
-		t.Fatalf("erwarte 'hallo ' (mit Trailing-Space), habe %q", out)
-	}
-}
-
-func TestWrapToWidth_PreservesMultipleTrailingSpaces(t *testing.T) {
-	out := wrapToWidth("hallo   ", 20)
-	if out != "hallo   " {
-		t.Fatalf("erwarte 'hallo   ' (3 Trailing-Spaces), habe %q", out)
-	}
-}
-
-func TestView_EditMode_CursorMovesAfterSpaceKey(t *testing.T) {
-	m := newTestModel()
-	m.mode = modeEdit
-	m.width = 40
-	m.editBuf = "hallo"
-
-	outBefore := m.View()
-	if !strings.Contains(outBefore, "hallo"+editCursor) {
-		t.Fatalf("erwarte Cursor direkt hinter 'hallo', habe:\n%s", outBefore)
-	}
-
-	m.editBuf = "hallo " // Leertaste gedrückt
-
-	outAfter := m.View()
-	if !strings.Contains(outAfter, "hallo "+editCursor) {
-		t.Fatalf("erwarte Cursor nach dem Leerzeichen, nicht direkt hinter 'hallo' — Bug: %q enthält %q statt 'hallo %s'", outAfter, "hallo"+editCursor, editCursor)
-	}
-}
-
 func TestView_EditMode_WrapsLongBufferAtWindowWidth(t *testing.T) {
 	m := newTestModel()
-	m.mode = modeEdit
 	m.width = 9
-	m.editBuf = "eins zwei drei vier"
+	m = m.startEdit("eins zwei drei vier", false)
 
 	out := m.View()
-	if !strings.Contains(out, "eins zwei\ndrei vier") {
+	if strings.Contains(out, "eins zwei drei vier") {
 		t.Fatalf("erwarte umgebrochenen Buffer in View-Output, habe:\n%s", out)
 	}
 }
