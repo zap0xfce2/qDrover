@@ -112,7 +112,6 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		if err != nil {
 			return state, nil, err
 		}
-		text = a.TextPrefix + text
 		return state, []Effect{SendDispatch{Direction: a.Direction, Text: text, PromptID: id, PrefixCommands: a.PrefixCommands}}, nil
 	}
 	return state, nil, fmt.Errorf("unbekannte Action %T", action)

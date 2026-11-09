@@ -38,18 +38,10 @@ func (nullStore) ListSessions() ([]domain.Session, error)               { return
 type fakeHerdr struct {
 	err   error
 	calls int
-	// lastText/lastPrefixCommands: Argumente des zuletzt beobachteten
-	// ResolveAndPromptWithPrefix-Aufrufs, für Tests die genau prüfen wollen,
-	// was tatsächlich gesendet würde (z. B. /subtask-Präfix, Plan-/Clear-
-	// Unabhängigkeit).
-	lastText           string
-	lastPrefixCommands []string
 }
 
 func (h *fakeHerdr) ResolveAndPromptWithPrefix(ctx context.Context, direction ports.Direction, prefixCommands []string, text string) error {
 	h.calls++
-	h.lastText = text
-	h.lastPrefixCommands = prefixCommands
 	return h.err
 }
 
@@ -388,77 +380,6 @@ func TestBoardKey_S_KeepsMarkedPromptAfterSend(t *testing.T) {
 	}
 }
 
-func TestBoardKey_ShiftS_SendsWithSubtaskPrefixAndRemovesPrompt(t *testing.T) {
-	board := domain.Board{}
-	board = board.AddPrompt("t1", "erste Idee", 100)
-	board = board.AddPrompt("t2", "zweite Idee", 100)
-	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	herdr := &fakeHerdr{}
-	executor := application.NewExecutor(nullStore{}, herdr)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
-	m = updated.(Model)
-	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
-
-	if m.err != nil {
-		t.Fatalf("unerwarteter Fehler nach 'S': %v", m.err)
-	}
-	if herdr.lastText != "/subtask erste Idee" {
-		t.Fatalf("erwarte gesendeten Text '/subtask erste Idee', habe %q", herdr.lastText)
-	}
-	live := m.state.Board.LivePrompts()
-	if len(live) != 1 || live[0].ID != domain.PromptID("t2") {
-		t.Fatalf("erwarte nur noch t2 nach 'S' (Prompt wird entfernt), habe %+v", live)
-	}
-}
-
-func TestBoardKey_ShiftS_KeepsMarkedPromptAfterSend(t *testing.T) {
-	board := domain.Board{}
-	board = board.AddPrompt("t1", "erste Idee", 100)
-	board = board.AddPrompt("t2", "zweite Idee", 100)
-	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
-	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace}) // t1 markieren
-	m = updated.(Model)
-	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
-
-	if m.err != nil {
-		t.Fatalf("unerwarteter Fehler nach 'S' auf markierten Prompt: %v", m.err)
-	}
-	live := m.state.Board.LivePrompts()
-	if len(live) != 2 {
-		t.Fatalf("erwarte weiterhin 2 Prompts (markierter Prompt bleibt nach 'S'), habe %d", len(live))
-	}
-	if !live[0].Marked {
-		t.Fatal("erwarte t1 weiterhin markiert nach 'S'")
-	}
-}
-
-func TestBoardKey_ShiftS_IgnoresActivePlanAndClearMode(t *testing.T) {
-	board := domain.Board{}
-	board = board.AddPrompt("t1", "erste Idee", 100)
-	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	herdr := &fakeHerdr{}
-	executor := application.NewExecutor(nullStore{}, herdr)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-/Clear-Modus per Default an
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
-	m = updated.(Model)
-	runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
-
-	if len(herdr.lastPrefixCommands) != 0 {
-		t.Fatalf("erwarte keine PrefixCommands bei 'S' trotz aktivem Plan-/Clear-Modus, habe %v", herdr.lastPrefixCommands)
-	}
-	if herdr.lastText != "/subtask erste Idee" {
-		t.Fatalf("erwarte gesendeten Text '/subtask erste Idee', habe %q", herdr.lastText)
-	}
-}
-
 func TestDispatch_SuccessfulSend_RecordsSentHistory(t *testing.T) {
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
@@ -648,25 +569,6 @@ func TestBoardKey_ShiftUp_SuccessfulSend_DeactivatesClearMode(t *testing.T) {
 	}
 	if m.state.Board.Session.IsClearModeActive() {
 		t.Fatal("erwarte ClearModeActive=false nach erfolgreichem shift+up")
-	}
-}
-
-func TestBoardKey_ShiftS_SuccessfulSend_LeavesClearModeUnchanged(t *testing.T) {
-	board := domain.Board{}
-	board = board.AddPrompt("t1", "erste Idee", 100)
-	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
-	m = updated.(Model)
-	m = runSend(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
-
-	if m.err != nil {
-		t.Fatalf("unerwarteter Fehler nach 'S': %v", m.err)
-	}
-	if !m.state.Board.Session.IsClearModeActive() {
-		t.Fatal("erwarte ClearModeActive weiterhin true nach 'S' (Subtask-Pfad unberührt von Clear-Modus)")
 	}
 }
 
