@@ -33,7 +33,6 @@ Im Editor
 Senden an Herdr-Pane
   shift+↑/↓/←/→  senden, Prompt bleibt in der Liste
   s              nach oben senden, Prompt wird danach entfernt (Undo-fähig)
-  S              /subtask + Text nach oben senden, Prompt wird danach entfernt (Undo-fähig)
   leertaste      Prompt markieren/entmarkieren (cyan) — überstimmt Löschen bei s
   p              Plan-Modus umschalten (Ziel bekommt vor jedem Send erst /plan), standardmäßig an
   c              Clear-Modus umschalten (Ziel bekommt vor jedem Send erst /clear), standardmäßig an

@@ -45,8 +45,6 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.dispatch(application.Redo{}), nil
 	case "s":
 		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, PrefixCommands: m.activePrefixCommands()})
-	case "S":
-		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, TextPrefix: subtaskPrefix})
 	case "shift+up":
 		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, PrefixCommands: m.activePrefixCommands()})
 	case "shift+down":

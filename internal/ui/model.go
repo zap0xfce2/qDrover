@@ -25,10 +25,6 @@ const (
 	prefixCommandClear = "/clear"
 )
 
-// subtaskPrefix wird dem Text bei Shift+S vorangestellt (eine Nachricht,
-// unabhängig von Plan-/Clear-Modus — siehe handleBoardKey, Fall "S").
-const subtaskPrefix = "/subtask "
-
 type mode int
 
 const (
