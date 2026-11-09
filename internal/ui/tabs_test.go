@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"qdrover/internal/application"
 	"qdrover/internal/domain"
@@ -60,24 +61,68 @@ func TestTabs_StartsOnFixed(t *testing.T) {
 	}
 }
 
-func TestTabs_RightArrowSwitchesToGlobal(t *testing.T) {
+func TestTabs_OrderIsAllGlobalLocalFixedLog(t *testing.T) {
+	want := []string{"Alle", "Global", "Lokal", "Fixiert", "Log"}
+
+	if !reflect.DeepEqual(tabLabels, want) {
+		t.Fatalf("erwarte Reiter %v, habe %v", want, tabLabels)
+	}
+}
+
+func TestTabs_RightArrowFromFixedSwitchesToLog(t *testing.T) {
 	m := pressKey(newMixedScopeModel(), keyRight)
 
-	if m.tab != tabGlobal {
-		t.Fatalf("erwarte Reiter Global, habe %d", m.tab)
+	if m.tab != tabLog {
+		t.Fatalf("erwarte Reiter Log, habe %d", m.tab)
 	}
 }
 
 func TestTabs_LeftAtFirstTabStays(t *testing.T) {
-	m := pressKey(newMixedScopeModel(), keyLeft)
+	m := pressKey(newMixedScopeModel().applyTab(tabAll), keyLeft)
 
-	if m.tab != tabFixed {
-		t.Fatalf("erwarte Reiter Fixiert, habe %d", m.tab)
+	if m.tab != tabAll {
+		t.Fatalf("erwarte Reiter Alle, habe %d", m.tab)
+	}
+}
+
+func TestTabs_AllShowsEveryPrompt(t *testing.T) {
+	m := newMixedScopeModel().applyTab(tabAll)
+
+	if p := application.VisibleLive(m.state); len(p) != 3 {
+		t.Fatalf("erwarte alle 3 Prompts im Reiter Alle, habe %v", p)
+	}
+}
+
+func TestTabs_AllShowsOriginPrefix(t *testing.T) {
+	out := newMixedScopeModel().applyTab(tabAll).View()
+
+	if !strings.Contains(out, "G globale Idee") {
+		t.Fatalf("erwarte Herkunftspräfix G im Reiter Alle, habe:\n%s", out)
+	}
+}
+
+func TestTabs_NewPromptInAllTabIsGlobal(t *testing.T) {
+	m := pressKey(newMixedScopeModel().applyTab(tabAll), runeKey("i"))
+
+	if created := application.VisibleLive(m.state)[2]; created.IsLocal() || created.Marked {
+		t.Fatalf("erwarte neuen Prompt global und nicht fixiert, habe %+v", created)
+	}
+}
+
+func TestTabBar_WidthStableAcrossTabsAndCounts(t *testing.T) {
+	few := newMixedScopeModel()
+	many := newMixedScopeModel().applyTab(tabLog)
+	for i := 0; i < 20; i++ {
+		many.state.Board = many.state.Board.AddPrompt(domain.PromptID("x"+string(rune('a'+i))), "mehr", 100)
+	}
+
+	if lipgloss.Width(few.tabBar()) != lipgloss.Width(many.tabBar()) {
+		t.Fatalf("erwarte gleich breite Reiterzeile, habe %q vs %q", few.tabBar(), many.tabBar())
 	}
 }
 
 func TestTabs_NewPromptInLocalTabIsLocal(t *testing.T) {
-	m := pressKey(pressKey(newMixedScopeModel(), keyRight), keyRight)
+	m := pressKey(newMixedScopeModel(), keyLeft)
 
 	m = pressKey(m, runeKey("i"))
 

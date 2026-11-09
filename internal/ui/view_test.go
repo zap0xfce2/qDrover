@@ -318,11 +318,11 @@ func TestView_VersionBanner_HiddenWithoutVersion(t *testing.T) {
 }
 
 func TestAppendVersionBanner_WithKnownWidth_InlinesIntoTabBar(t *testing.T) {
-	m := newTestModel().WithVersion("v1")
-	m.width = 60
+	m := newTestModel().WithVersion("v2611091023")
+	m.width = 80
 
 	first := strings.Split(m.View(), "\n")[0]
-	if !strings.Contains(first, "Log") || !strings.HasSuffix(first, "qDrover v1") {
+	if !strings.Contains(first, "Log") || !strings.HasSuffix(first, "qDrover v2611091023") {
 		t.Fatalf("erwarte Banner rechtsbündig in der Reiterzeile, habe:\n%q", first)
 	}
 }
@@ -481,7 +481,7 @@ func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
 	m = updated.(Model)
 
 	out := m.View()
-	if out != "[Fixiert]  Global  Lokal  Log\n[i] neuer Prompt, [q] beenden, [h] Hilfe" {
+	if out != m.tabBar()+"\n[i] neuer Prompt, [q] beenden, [h] Hilfe" {
 		t.Fatalf("erwarte reinen Hint ohne Padding bei leerem Footer, habe:\n%q", out)
 	}
 }
