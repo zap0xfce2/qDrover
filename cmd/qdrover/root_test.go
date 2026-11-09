@@ -45,6 +45,39 @@ func TestBoot_NoGlobal_MigratesLegacyPrompts(t *testing.T) {
 	}
 }
 
+// writeRawLegacySession schreibt eine Alt-Session-Datei, deren innere ID nicht zum Dateinamen passen muss.
+func writeRawLegacySession(t *testing.T, stateRoot, fileName, innerID string) {
+	t.Helper()
+	sessionsDir := filepath.Join(stateRoot, "sessions")
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := `{"session": {"ID": "` + innerID + `"}, "prompts": []}`
+	if err := os.WriteFile(filepath.Join(sessionsDir, fileName), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBoot_LegacySessionIDDiffersFromFileName_Skipped(t *testing.T) {
+	stateRoot := t.TempDir()
+	writeLegacySession(t, stateRoot, "alt-prompt")
+	writeRawLegacySession(t, stateRoot, "kopie.json", "original")
+
+	if _, _, err := bootBoard(stateRoot, t.TempDir(), stubClock{}, stubIDs{}); err != nil {
+		t.Fatalf("Migration darf an fremder Session-ID nicht scheitern: %v", err)
+	}
+}
+
+func TestBoot_LegacySessionWithEmptyID_Skipped(t *testing.T) {
+	stateRoot := t.TempDir()
+	writeLegacySession(t, stateRoot, "alt-prompt")
+	writeRawLegacySession(t, stateRoot, "leer.json", "")
+
+	if _, _, err := bootBoard(stateRoot, t.TempDir(), stubClock{}, stubIDs{}); err != nil {
+		t.Fatalf("Migration darf an leerer Session-ID nicht scheitern: %v", err)
+	}
+}
+
 func TestBoot_NoGlobal_WritesNoLocalFile(t *testing.T) {
 	stateRoot, cwd := t.TempDir(), t.TempDir()
 	writeLegacySession(t, stateRoot, "alt-prompt")
