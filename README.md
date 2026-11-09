@@ -47,7 +47,7 @@ Ohne `HERDR_ENV=1` funktioniert qDrover weiterhin als reines lokales Board — n
 Mit `go-task` (bevorzugt):
 
 ```
-task install     # baut dist/ und installiert das Binary für die eigene Plattform (Linux amd64 / macOS arm64) nach ~/bin/qdrover
+task install     # baut dist/, installiert das Binary für die eigene Plattform (Linux amd64 / macOS arm64) nach ~/bin/qdrover und den Skill nach ~/.claude/skills/
 task dist-build   # Cross-Builds nach dist/ (Linux amd64, macOS arm64)
 task release      # dist/-Binaries als GitHub Release hochladen
 task run          # TUI direkt starten
@@ -85,7 +85,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | `i` | neuen Prompt anlegen |
 | `enter` | fokussierten Prompt bearbeiten |
 | `d` | fokussierten Prompt löschen |
-| `J` | Prompt nach unten verschieben |
+| `J` | Prompt nach unten verschieben (nur in Global/Lokal) |
 | `K` | Prompt nach oben verschieben (nur in Global/Lokal) |
 | `V` | Zwischenablage als neuen Prompt einfügen (braucht `xclip`/`xsel`/`wl-clipboard` + X11/Wayland) |
 | `C` | fokussierten Prompt in Zwischenablage kopieren (auch über SSH per OSC52) |
