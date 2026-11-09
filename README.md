@@ -6,15 +6,16 @@
 
 ## Überblick
 
-qDrover verwaltet pro Arbeitsverzeichnis ein Board aus Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert und wieder gelöscht werden können. Ist zusätzlich [Herdr](https://herdr.dev) verfügbar, kann jeder Prompt per Tastendruck an eine benachbarte Herdr-Pane geschickt werden, optional mit vorangestellten `/plan`- oder `/clear`-Kommandos.
+qDrover verwaltet Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert und wieder gelöscht werden können. Das Board hat vier Reiter (`←`/`→`): **Fixiert**, **Global** (überall dieselben Prompts), **Lokal** (Projekt-Prompts aus `qdrover.json` im aktuellen Verzeichnis) und **Log** (zuletzt gesendet). Ist zusätzlich [Herdr](https://herdr.dev) verfügbar, kann jeder Prompt per Tastendruck an eine benachbarte Herdr-Pane geschickt werden, optional mit vorangestellten `/plan`- oder `/clear`-Kommandos.
 
 ## Features
 
 - **Board & Prompts** — Prompts anlegen, bearbeiten, verschieben und löschen
 - **Undo/Redo** — Snapshot-basierter Verlauf über die letzten 50 Änderungen (`u`/`r`).
-- **Markieren** — Prompts lassen sich mit der Leertaste dauerhaft markieren. Ein markierter Prompt übersteht das automatische Löschen beim Senden mit `s`.
+- **Fixieren** — Prompts lassen sich mit der Leertaste dauerhaft fixieren. Ein fixierter Prompt übersteht das automatische Löschen beim Senden mit `s`.
 - **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt. Clear-Modus ist ein einmaliger "Schuss": nach erfolgreichem Senden mit `/clear`-Präfix schaltet er sich selbst wieder ab. Plan-Modus bleibt aktiv, bis er manuell mit `p` umgeschaltet wird.
-- **Sendehistorie** — die letzten 5 gesendeten Texte werden mit Zeitstempel im Footer angezeigt.
+- **Reiter** — Fixiert · Global · Lokal · Log, umschaltbar mit `←`/`→`. Fixiert zeigt alle fixierten Prompts aus Global und Lokal (Herkunft als `G`/`L`). Neue Prompts landen im aktiven Reiter (in Fixiert: global und sofort fixiert).
+- **Log** — die letzten 5 gesendeten Texte mit Zeitstempel im Log-Reiter (nur lesend).
 - **Fünf Sende-Tasten**, alle senden an die Nachbar-Pane in der jeweiligen Richtung bzw. nach oben:
   | Taste | Aktion |
   |---|---|
@@ -76,6 +77,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | `k` / `↑` | einen Prompt nach oben |
 | `g` | zum ersten Prompt |
 | `G` | zum letzten Prompt |
+| `←` / `→` | Reiter wechseln (Fixiert · Global · Lokal · Log) |
 
 **Bearbeiten**
 | Taste | Aktion |
@@ -84,7 +86,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | `enter` | fokussierten Prompt bearbeiten |
 | `d` | fokussierten Prompt löschen |
 | `J` | Prompt nach unten verschieben |
-| `K` | Prompt nach oben verschieben |
+| `K` | Prompt nach oben verschieben (nur in Global/Lokal) |
 | `V` | Zwischenablage als neuen Prompt einfügen (braucht `xclip`/`xsel`/`wl-clipboard` + X11/Wayland) |
 | `C` | fokussierten Prompt in Zwischenablage kopieren (auch über SSH per OSC52) |
 
@@ -125,7 +127,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 qdrover
 ```
 
-Startet ohne Argumente das TUI und lädt bzw. erstellt das Session-Board für das aktuelle Arbeitsverzeichnis.
+Startet ohne Argumente das TUI und lädt die globalen Prompts sowie die lokalen aus `qdrover.json` im aktuellen Verzeichnis.
 
 ```
 qdrover send [query] [--direction up|down|left|right]
@@ -135,4 +137,14 @@ Sendet einen einzelnen Prompt an eine Herdr-Pane, ohne das TUI zu öffnen. Die Q
 
 ## Datenablage
 
-Jede Session wird als JSON-Datei unter `~/.local/state/qdrover/sessions/` gespeichert, eine Session pro Arbeitsverzeichnis.
+- **Global:** `~/.local/state/qdrover/global.json` — globale Prompts plus persönlicher Zustand (Plan-/Clear-Modus, Log, Fixierungen auch lokaler Prompts).
+- **Lokal:** `qdrover.json` im Startverzeichnis (kein Suchen in Elternverzeichnissen) — nur die Prompts des Projekts, ohne persönlichen Zustand. Die Datei darf eingecheckt oder in der `.gitignore` stehen und wird erst angelegt, wenn der erste lokale Prompt entsteht.
+
+Vor jedem Schreiben liest qDrover beide Dateien neu ein und führt Änderungen anderer Instanzen oder von `git pull` per Prompt-ID zusammen. Eine unlesbare Datei (z. B. Merge-Konflikt-Marker) stoppt den Start mit Dateiname und Fehler.
+
+Alte Sessions (`~/.local/state/qdrover/sessions/*.json`) werden beim ersten Start einmalig nach `global.json` übernommen; die alten Dateien bleiben liegen.
+
+## Roadmap
+
+- Session-Migration (alte `sessions/*.json` → `global.json`) in der nächsten Version entfernen
+- Skill: Prompts aus Roadmap-Themen in `qdrover.json` erzeugen
