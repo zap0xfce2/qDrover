@@ -15,7 +15,7 @@ Navigation
   k / ↑        einen Prompt nach oben
   g            zum ersten Prompt
   G            zum letzten Prompt
-  ←/→          Reiter wechseln (Fixiert · Global · Lokal · Log)
+  ←/→          Reiter wechseln (Alle · Global · Lokal · Fixiert · Log)
 
 Bearbeiten
   i            neuen Prompt anlegen

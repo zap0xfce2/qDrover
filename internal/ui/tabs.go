@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -12,20 +13,31 @@ import (
 type tab int
 
 const (
-	tabFixed tab = iota
+	tabAll tab = iota
 	tabGlobal
 	tabLocal
+	tabFixed
 	tabLog
 )
 
-var tabLabels = []string{"Fixiert", "Global", "Lokal", "Log"}
+var tabLabels = []string{"Alle", "Global", "Lokal", "Fixiert", "Log"}
 
-var activeTabStyle = lipgloss.NewStyle().Bold(true)
+// tabCountWidth hält jede Reiterzelle unabhängig von der Anzahl gleich breit,
+// damit die Reiterzeile beim Wechseln/Zählen nicht springt.
+const tabCountWidth = 2
+
+var (
+	activeTabStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
+	inactiveTabStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	tabSeparator     = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("│ ")
+)
 
 // tabFilter liefert den Sichtbarkeitsfilter eines Reiters für AppState.Visible.
 // Log zeigt keine Prompts.
 func tabFilter(t tab) func(domain.Prompt) bool {
 	switch t {
+	case tabAll:
+		return func(domain.Prompt) bool { return true }
 	case tabFixed:
 		return func(p domain.Prompt) bool { return p.Marked }
 	case tabGlobal:
@@ -52,7 +64,7 @@ func (m Model) applyTab(t tab) Model {
 
 // switchTab wechselt um delta Reiter, am Rand geklemmt.
 func (m Model) switchTab(delta int) Model {
-	return m.applyTab(tab(min(max(int(m.tab)+delta, int(tabFixed)), int(tabLog))))
+	return m.applyTab(tab(min(max(int(m.tab)+delta, int(tabAll)), int(tabLog))))
 }
 
 // newPromptAction liefert die CreatePrompt-Action für i/V im aktiven Reiter;
@@ -61,7 +73,7 @@ func (m Model) newPromptAction() (application.CreatePrompt, bool) {
 	switch m.tab {
 	case tabFixed:
 		return application.CreatePrompt{Scope: domain.ScopeGlobal, Marked: true}, true
-	case tabGlobal:
+	case tabAll, tabGlobal:
 		return application.CreatePrompt{Scope: domain.ScopeGlobal}, true
 	case tabLocal:
 		return application.CreatePrompt{Scope: domain.ScopeLocal}, true
@@ -70,21 +82,42 @@ func (m Model) newPromptAction() (application.CreatePrompt, bool) {
 	}
 }
 
-// tabBar rendert die Reiterzeile, aktiver Reiter als [Name].
+// tabBar rendert die Reiterzeile: Zellen fester Breite, durch │ getrennt.
 func (m Model) tabBar() string {
-	labels := make([]string, len(tabLabels))
+	cells := make([]string, len(tabLabels))
 	for i, label := range tabLabels {
-		labels[i] = label
-		if tab(i) == m.tab {
-			labels[i] = activeTabStyle.Render("[" + label + "]")
-		}
+		cells[i] = m.tabCell(tab(i), label)
 	}
-	return truncateToWidth(strings.Join(labels, "  "), m.width)
+	return truncateToWidth(strings.Join(cells, tabSeparator), m.width)
 }
 
-// originPrefix markiert im Fixiert-Reiter die Herkunft (global/lokal) eines Prompts.
+// tabCell rendert einen Reiter als "Name 12 "; der aktive hebt sich nur per Farbe ab.
+func (m Model) tabCell(t tab, label string) string {
+	style := inactiveTabStyle
+	if t == m.tab {
+		style = activeTabStyle
+	}
+	return style.Render(fmt.Sprintf("%s %-*d", label, tabCountWidth, m.tabCount(t)))
+}
+
+// tabCount zählt die Prompts eines Reiters bzw. die Log-Einträge.
+func (m Model) tabCount(t tab) int {
+	if t == tabLog {
+		return len(m.state.Board.Session.SentHistory)
+	}
+	visible := tabFilter(t)
+	count := 0
+	for _, p := range m.state.Board.LivePrompts() {
+		if visible(p) {
+			count++
+		}
+	}
+	return count
+}
+
+// originPrefix markiert in den gemischten Reitern (Alle, Fixiert) die Herkunft eines Prompts.
 func (m Model) originPrefix(p domain.Prompt) string {
-	if m.tab != tabFixed {
+	if m.tab != tabFixed && m.tab != tabAll {
 		return ""
 	}
 	if p.IsLocal() {

@@ -1,14 +1,10 @@
 package domain
 
+// Session hält den persönlichen Zustand (in global.json), nicht die Prompts.
 type Session struct {
-	ID           SessionID
-	Name         *string
-	OriginCwd    string
-	CreatedAt    Timestamp
-	LastOpenedAt Timestamp
-	// PlanModeActive/ClearModeActive: nil bedeutet "alte Session ohne dieses
-	// Feld" -> Default true (siehe IsPlanModeActive/IsClearModeActive), sonst
-	// der explizit gespeicherte Wert. Gleiches Optional-Pattern wie Name.
+	// PlanModeActive/ClearModeActive: nil bedeutet "Feld nie gespeichert"
+	// -> Default true (siehe IsPlanModeActive/IsClearModeActive), sonst der
+	// explizit gespeicherte Wert.
 	PlanModeActive  *bool
 	ClearModeActive *bool
 	SentHistory     []SentHistoryEntry

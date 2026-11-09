@@ -36,7 +36,7 @@ func runAdd(args []string, stdin io.Reader, out io.Writer, stateRoot, cwd string
 		return err
 	}
 	text = strings.TrimSpace(text)
-	board, store, err := bootBoard(stateRoot, cwd, clock, ids)
+	board, store, err := bootBoard(stateRoot, cwd)
 	if err != nil {
 		return err
 	}

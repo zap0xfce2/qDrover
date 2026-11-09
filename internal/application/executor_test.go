@@ -9,14 +9,14 @@ import (
 )
 
 type fakeStore struct {
-	boards map[domain.SessionID]domain.Board
+	saves  int
 	merged *domain.Board
 }
 
-func newFakeStore() *fakeStore { return &fakeStore{boards: map[domain.SessionID]domain.Board{}} }
+func newFakeStore() *fakeStore { return &fakeStore{} }
 
 func (s *fakeStore) Save(board domain.Board) (domain.Board, error) {
-	s.boards[board.Session.ID] = board
+	s.saves++
 	if s.merged != nil {
 		return *s.merged, nil
 	}
@@ -102,13 +102,13 @@ func TestExecutor_PersistBoard_SavesToStore(t *testing.T) {
 	herdr := &fakeHerdr{}
 	executor := NewExecutor(store, herdr)
 
-	board := domain.Board{Session: domain.Session{ID: "s1"}}
+	board := domain.Board{}
 	_, err := executor.Execute(context.Background(), []Effect{PersistBoard{Board: board}})
 	if err != nil {
 		t.Fatalf("unerwarteter Fehler: %v", err)
 	}
-	if _, ok := store.boards["s1"]; !ok {
-		t.Fatal("erwarte gespeicherte Session s1")
+	if store.saves != 1 {
+		t.Fatalf("erwarte genau einen Save, habe %d", store.saves)
 	}
 }
 
