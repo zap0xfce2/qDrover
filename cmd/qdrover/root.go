@@ -27,16 +27,6 @@ const (
 	legacySessionsDirName = "sessions"
 )
 
-// firstLivePromptID liefert die ID des ersten lebenden Prompts, damit beim
-// Programmstart direkt ein bestehender Prompt fokussiert ist statt nichts.
-func firstLivePromptID(board domain.Board) *domain.PromptID {
-	live := board.LivePrompts()
-	if len(live) == 0 {
-		return nil
-	}
-	return &live[0].ID
-}
-
 func defaultStateDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -127,7 +117,6 @@ func runTUI() error {
 	gateway := herdr.NewGateway()
 	executor := application.NewExecutor(store, gateway)
 	state := application.AppState{Board: board, History: application.NewHistory(undoHistoryDepth)}
-	state.FocusedID = firstLivePromptID(board)
 
 	model := ui.New(state, executor, clock, ids, clip).WithVersion(version)
 	p := tea.NewProgram(model, tea.WithAltScreen())

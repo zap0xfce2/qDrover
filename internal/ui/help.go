@@ -15,6 +15,7 @@ Navigation
   k / ↑        einen Prompt nach oben
   g            zum ersten Prompt
   G            zum letzten Prompt
+  ←/→          Reiter wechseln
 
 Bearbeiten
   i            neuen Prompt anlegen

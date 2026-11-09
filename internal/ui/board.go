@@ -4,7 +4,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"qdrover/internal/application"
-	"qdrover/internal/domain"
 	"qdrover/internal/ports"
 )
 
@@ -19,6 +18,10 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.dispatch(application.TogglePlanMode{}), nil
 	case "c":
 		return m.dispatch(application.ToggleClearMode{}), nil
+	case "left":
+		return m.switchTab(-1), nil
+	case "right":
+		return m.switchTab(1), nil
 	case "down", "j":
 		return m.moveFocus(1), nil
 	case "up", "k":
@@ -26,8 +29,7 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.startEdit(m.focusedContent(), false), nil
 	case "i":
-		m = m.dispatch(application.CreatePrompt{Content: ""})
-		return m.startEdit("", true), nil
+		return m.createPrompt(""), nil
 	case "d":
 		if m.state.FocusedID != nil {
 			m = m.dispatch(application.DeletePrompt{ID: *m.state.FocusedID})
@@ -58,13 +60,7 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		return m.toggleMarked(), nil
 	case "V":
-		content, err := m.clipboard.ReadAll()
-		if err != nil {
-			m.err = err
-			return m, nil
-		}
-		m = m.dispatch(application.CreatePrompt{Content: ""})
-		return m.startEdit(content, true), nil
+		return m.pasteAsPrompt(), nil
 	case "C":
 		if m.state.FocusedID == nil {
 			return m, nil
@@ -79,25 +75,45 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// movePrompt verschiebt den fokussierten Prompt um delta Positionen (geclamped).
+// movePrompt tauscht den fokussierten Prompt mit seinem sichtbaren Nachbarn;
+// nur in Global/Lokal, da Fixiert beide Scopes mischt und Log keine Prompts hat.
 func (m Model) movePrompt(delta int) Model {
-	if m.state.FocusedID == nil {
+	if m.state.FocusedID == nil || (m.tab != tabGlobal && m.tab != tabLocal) {
 		return m
 	}
-	live := m.state.Board.LivePrompts()
-	idx := focusedIndex(live, m.state.FocusedID)
-	newPos := idx + delta
-	if newPos < 0 {
-		newPos = 0
+	live := application.VisibleLive(m.state)
+	target := focusedIndex(live, m.state.FocusedID) + delta
+	if target < 0 || target >= len(live) {
+		return m
 	}
-	if newPos > len(live)-1 {
-		newPos = len(live) - 1
+	return m.dispatch(application.MovePrompt{ID: *m.state.FocusedID, To: live[target].Position})
+}
+
+// createPrompt legt im aktiven Reiter einen Prompt an und öffnet ihn im
+// Editor; No-op im Log-Reiter.
+func (m Model) createPrompt(content string) Model {
+	action, ok := m.newPromptAction()
+	if !ok {
+		return m
 	}
-	return m.dispatch(application.MovePrompt{ID: *m.state.FocusedID, To: domain.PromptPosition(newPos)})
+	return m.dispatch(action).startEdit(content, true)
+}
+
+// pasteAsPrompt legt die Zwischenablage als neuen Prompt an (Taste V).
+func (m Model) pasteAsPrompt() Model {
+	if _, ok := m.newPromptAction(); !ok {
+		return m
+	}
+	content, err := m.clipboard.ReadAll()
+	if err != nil {
+		m.err = err
+		return m
+	}
+	return m.createPrompt(content)
 }
 
 func (m Model) focusFirst() Model {
-	live := m.state.Board.LivePrompts()
+	live := application.VisibleLive(m.state)
 	if len(live) == 0 {
 		return m
 	}
@@ -105,7 +121,7 @@ func (m Model) focusFirst() Model {
 }
 
 func (m Model) focusLast() Model {
-	live := m.state.Board.LivePrompts()
+	live := application.VisibleLive(m.state)
 	if len(live) == 0 {
 		return m
 	}
@@ -113,7 +129,7 @@ func (m Model) focusLast() Model {
 }
 
 func (m Model) moveFocus(delta int) Model {
-	live := m.state.Board.LivePrompts()
+	live := application.VisibleLive(m.state)
 	if len(live) == 0 {
 		return m
 	}
@@ -144,7 +160,7 @@ func (m Model) focusedContent() string {
 	if m.state.FocusedID == nil {
 		return ""
 	}
-	for _, t := range m.state.Board.LivePrompts() {
+	for _, t := range application.VisibleLive(m.state) {
 		if t.ID == *m.state.FocusedID {
 			return t.Content
 		}

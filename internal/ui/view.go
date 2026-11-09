@@ -8,12 +8,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"qdrover/internal/application"
 	"qdrover/internal/domain"
 )
 
 // sentTimestampFormat zeigt nur die Uhrzeit — reicht für eine TUI-Session an
 // einem Tag und spart Footer-Platz gegenüber einem vollen Datum.
 const sentTimestampFormat = "15:04:05"
+
+// tabBarHeight: die Reiterzeile belegt immer genau eine Zeile über der Liste.
+const tabBarHeight = 1
 
 // sentHistoryFadeColors: Farbrampe je Alters-Rang (0 = zuletzt gesendet).
 // Alle Ränge nutzen feste xterm256-Codes statt Basis-ANSI (0-15): die sind
@@ -146,49 +150,55 @@ func (m Model) renderView() string {
 		return fmt.Sprintf("Bearbeite Prompt:\n%s\n\n[Esc: speichern & verlassen]", m.editor.View())
 	}
 
-	live := m.state.Board.LivePrompts()
-	footer := strings.Join(m.footerLines(), "\n")
+	// boardBody endet nie auf "\n" — sonst hinge appendVersionBanner den
+	// Banner an ein leeres Phantom-Element statt an die Statuszeile.
+	return m.withVersionBanner(m.tabBar() + "\n" + m.boardBody())
+}
+
+// boardBody rendert die Prompt-Liste des aktiven Reiters (bzw. dessen
+// Hinweiszeile) samt Footer unterhalb der Reiterzeile.
+func (m Model) boardBody() string {
+	live := application.VisibleLive(m.state)
 	if len(live) == 0 {
-		hint := "[i] neuer Prompt, [q] beenden, [h] Hilfe"
-		if footer != "" {
-			if m.height > 0 {
-				if padding := m.maxVisiblePrompts() - 1; padding > 0 {
-					hint += strings.Repeat("\n", padding)
-				}
-			}
-			hint += "\n" + footer
-		}
-		return m.withVersionBanner(hint)
+		return m.withFooter(m.emptyTabHint(), 1)
 	}
-
 	start, end := m.visiblePromptRange(live)
-
-	var b strings.Builder
+	lines := make([]string, 0, end-start)
 	for _, t := range live[start:end] {
-		cursor := "  "
-		if m.state.FocusedID != nil && t.ID == *m.state.FocusedID {
-			cursor = "> "
-		}
-		singleLine := strings.ReplaceAll(t.Content, "\n", " ")
-		line := truncateToWidth(cursor+singleLine, m.width)
-		if t.Marked {
-			line = markedStyle.Render(line)
-		}
-		fmt.Fprintln(&b, line)
+		lines = append(lines, m.promptLine(t))
 	}
-	if footer != "" {
-		if m.height > 0 {
-			if padding := m.maxVisiblePrompts() - (end - start); padding > 0 {
-				b.WriteString(strings.Repeat("\n", padding))
-			}
-		}
-		fmt.Fprintf(&b, "%s\n", footer)
+	return m.withFooter(strings.Join(lines, "\n"), end-start)
+}
+
+// promptLine rendert eine Prompt-Zeile: Cursor, Herkunft (nur Fixiert) und
+// Inhalt als eine Zeile, auf Terminalbreite gekürzt.
+func (m Model) promptLine(t domain.Prompt) string {
+	cursor := "  "
+	if m.state.FocusedID != nil && t.ID == *m.state.FocusedID {
+		cursor = "> "
 	}
-	// TrimSuffix vor withVersionBanner (nicht erst im äußeren View()):
-	// appendVersionBanner hängt den Banner an die letzte Zeile an — ohne
-	// diesen Trim wäre das wegen des trailing "\n" ein leeres Phantom-Element
-	// unterhalb der eigentlichen Status-/History-Zeile statt diese Zeile selbst.
-	return m.withVersionBanner(strings.TrimSuffix(b.String(), "\n"))
+	singleLine := strings.ReplaceAll(t.Content, "\n", " ")
+	line := truncateToWidth(cursor+m.originPrefix(t)+singleLine, m.width)
+	if t.Marked {
+		return markedStyle.Render(line)
+	}
+	return line
+}
+
+// withFooter hängt den Footer an body (bodyLines Zeilen) an und füllt bei
+// bekannter Höhe vorher mit Leerzeilen auf, damit der Footer am unteren
+// Bildschirmrand sitzt.
+func (m Model) withFooter(body string, bodyLines int) string {
+	footer := strings.Join(m.footerLines(), "\n")
+	if footer == "" {
+		return body
+	}
+	if m.height > 0 {
+		if padding := m.maxVisiblePrompts() - bodyLines; padding > 0 {
+			body += strings.Repeat("\n", padding)
+		}
+	}
+	return body + "\n" + footer
 }
 
 // footerLines liefert die aktiven Footer-Abschnitte (Sendehistorie,
@@ -226,12 +236,12 @@ func (m Model) footerHeight() int {
 }
 
 // maxVisiblePrompts liefert die für Promptzeilen verbleibende Höhe
-// (Terminalhöhe minus Footer), auf 0 geklemmt — der Footer kann bei sehr
+// (Terminalhöhe minus Reiterzeile und Footer), auf 0 geklemmt — der Footer kann bei sehr
 // kleinem Terminal allein schon >= m.height sein, negative Werte dürfen
 // weder an anchoredWindow noch an Padding-Berechnungen durchsickern. Nur
 // sinnvoll, wenn m.height > 0 — Aufrufer prüfen das selbst.
 func (m Model) maxVisiblePrompts() int {
-	v := m.height - m.footerHeight()
+	v := m.height - tabBarHeight - m.footerHeight()
 	if v < 0 {
 		return 0
 	}

@@ -41,6 +41,7 @@ type Model struct {
 	ids       ports.IDGenerator
 	clipboard ports.Clipboard
 	mode      mode
+	tab       tab
 	editor    textarea.Model
 	// editingNewPrompt: true während der Edit-Session eines frisch mit "i"
 	// angelegten Prompts — steuert, ob ein beim Verlassen des Edit-Modus
@@ -65,7 +66,8 @@ type Model struct {
 }
 
 func New(state application.AppState, executor *application.Executor, clock ports.Clock, ids ports.IDGenerator, clip ports.Clipboard) Model {
-	return Model{state: state, executor: executor, clock: clock, ids: ids, clipboard: clip, mode: modeBoard}
+	m := Model{state: state, executor: executor, clock: clock, ids: ids, clipboard: clip, mode: modeBoard}
+	return m.applyTab(tabFixed)
 }
 
 // WithVersion setzt die per ldflags gebaute Versionsnummer für den
@@ -202,7 +204,7 @@ func sendCmd(executor *application.Executor, effects []application.Effect, remov
 
 // isMarked prüft den aktuellen Markierungs-Status eines lebenden Prompts.
 func (m Model) isMarked(id domain.PromptID) bool {
-	for _, t := range m.state.Board.LivePrompts() {
+	for _, t := range application.VisibleLive(m.state) {
 		if t.ID == id {
 			return t.Marked
 		}
@@ -254,7 +256,7 @@ func (m Model) syncScroll() Model {
 	if m.mode != modeBoard || m.height <= 0 {
 		return m
 	}
-	live := m.state.Board.LivePrompts()
+	live := application.VisibleLive(m.state)
 	m.listScrollStart, _ = anchoredWindow(len(live), focusedIndex(live, m.state.FocusedID), m.maxVisiblePrompts(), m.listScrollStart)
 	return m
 }

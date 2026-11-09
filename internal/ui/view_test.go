@@ -25,7 +25,7 @@ func TestView_BoardMode_MultilinePrompt_ShowsFullContentAsOneLine(t *testing.T) 
 	board := domain.Board{}
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	out := m.View()
 
@@ -217,7 +217,7 @@ func TestView_BoardMode_OutputNeverExceedsTerminalHeight(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 	// Tastendruck: Banner weg (füllt sonst die Phantom-Zeile, siehe View()-Kommentar).
@@ -406,7 +406,7 @@ func TestSyncScroll_FocusMovingWithinWindow_KeepsScrollStartStable(t *testing.T)
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -425,7 +425,7 @@ func TestSyncScroll_FocusFirst_MakesFirstPromptVisibleAgain(t *testing.T) {
 		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
 	}
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
 	m = updated.(Model)
 
@@ -470,8 +470,8 @@ func TestView_EmptyBoard_HeightSet_PaddingBetweenHintAndFooter(t *testing.T) {
 	if len(lines) != m.height {
 		t.Fatalf("erwarte genau %d Zeilen bei leerem Board mit Footer, habe %d:\n%q", m.height, len(lines), out)
 	}
-	if !strings.Contains(lines[0], "[i] neuer Prompt") {
-		t.Fatalf("erwarte Hint in erster Zeile, habe:\n%q", out)
+	if !strings.Contains(lines[1], "[i] neuer Prompt") {
+		t.Fatalf("erwarte Hint direkt unter der Reiterzeile, habe:\n%q", out)
 	}
 	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
 		t.Fatalf("erwarte Statuszeile in letzter Zeile, habe:\n%q", out)
@@ -487,7 +487,7 @@ func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
 	m = updated.(Model)
 
 	out := m.View()
-	if out != "[i] neuer Prompt, [q] beenden, [h] Hilfe" {
+	if out != "[Fixiert]  Global  Lokal  Log\n[i] neuer Prompt, [q] beenden, [h] Hilfe" {
 		t.Fatalf("erwarte reinen Hint ohne Padding bei leerem Footer, habe:\n%q", out)
 	}
 }

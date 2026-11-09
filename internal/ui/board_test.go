@@ -84,7 +84,7 @@ func newTestModel() Model {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, nil)
-	return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	return onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 }
 
 func TestBoardKey_Down_MovesFocusToNextPrompt(t *testing.T) {
@@ -124,7 +124,7 @@ func TestBoardKey_G_FocusesLastPrompt_g_FocusesFirstPrompt(t *testing.T) {
 	board = board.AddPrompt("t3", "drei", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, nil)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
 	next := updated.(Model)
@@ -161,7 +161,7 @@ func TestBoardKey_S_RemovesPromptAfterSuccessfulSend_ShiftUp_KeepsIt(t *testing.
 		board = board.AddPrompt("t2", "zweite Idee", 100)
 		state := application.AppState{Board: board, History: application.NewHistory(50)}
 		executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+		return onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	}
 
 	// "s": fokussierten Prompt senden -> nach Erfolg aus dem Board entfernt.
@@ -209,7 +209,7 @@ func TestBoardKey_S_RemovesPromptImmediately_BeforeCmdRuns(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -235,7 +235,7 @@ func TestBoardKey_S_FailedSend_RestoresPromptAtOriginalPosition(t *testing.T) {
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	sendErr := errors.New("herdr nicht erreichbar")
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{err: sendErr})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t2
 	m = updated.(Model)
@@ -268,7 +268,7 @@ func TestBoardKey_S_WhileSending_SecondPressIsNoOp(t *testing.T) {
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	herdr := &fakeHerdr{}
 	executor := application.NewExecutor(nullStore{}, herdr)
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -303,7 +303,7 @@ func TestBoardKey_S_BusyFlagResetsAfterSuccessAndAfterFailure(t *testing.T) {
 		board = board.AddPrompt("t2", "zweite Idee", 100)
 		state := application.AppState{Board: board, History: application.NewHistory(50)}
 		executor := application.NewExecutor(nullStore{}, herdr)
-		return New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+		return onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 	}
 
 	successHerdr := &fakeHerdr{}
@@ -357,7 +357,7 @@ func TestBoardKey_S_KeepsMarkedPromptAfterSend(t *testing.T) {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -383,7 +383,7 @@ func TestDispatch_SuccessfulSend_RecordsSentHistory(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee\nzweite Zeile", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -404,7 +404,7 @@ func TestDispatch_MultipleSends_AppendToSentHistory(t *testing.T) {
 	board = board.AddPrompt("t2", "zweite Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -517,7 +517,7 @@ func TestBoardKey_S_WithPlanPrefix_SendsPrefixInAction(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-Modus per Default an
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})) // Plan-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -537,7 +537,7 @@ func TestBoardKey_S_SuccessfulSend_DeactivatesClearMode(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})) // Clear-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -556,7 +556,7 @@ func TestBoardKey_ShiftUp_SuccessfulSend_DeactivatesClearMode(t *testing.T) {
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})) // Clear-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -575,7 +575,7 @@ func TestBoardKey_S_SuccessfulSend_DeactivatesOnlyClearModeNotPlanMode(t *testin
 	board = board.AddPrompt("t1", "erste Idee", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Plan-/Clear-Modus per Default an
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})) // Plan-/Clear-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -598,7 +598,7 @@ func TestBoardKey_S_FailedSend_LeavesClearModeUnchanged(t *testing.T) {
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
 	sendErr := errors.New("herdr nicht erreichbar")
 	executor := application.NewExecutor(nullStore{}, &fakeHerdr{err: sendErr})
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}) // Clear-Modus per Default an
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{})) // Clear-Modus per Default an
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown}) // Fokus auf t1
 	m = updated.(Model)
@@ -709,7 +709,7 @@ func TestBoardKey_ShiftC_NoFocusedPrompt_IsNoOp(t *testing.T) {
 	state := application.AppState{Board: domain.Board{}, History: application.NewHistory(50)}
 	executor := application.NewExecutor(nullStore{}, nil)
 	fc := &fakeClipboard{}
-	m := New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, fc)
+	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, fc))
 
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C")})
 
