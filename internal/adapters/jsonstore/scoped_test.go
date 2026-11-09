@@ -408,3 +408,19 @@ func TestScopedStore_UndoAfterForeignAdd_KeepsForeignPrompt(t *testing.T) {
 		t.Fatalf("fremder Prompt verloren: %+v", mustLoad(t, b).Prompts)
 	}
 }
+
+func TestScopedStore_MarkAfterForeignEdit_KeepsForeignContent(t *testing.T) {
+	paths := newScopedPaths(t)
+	a, b := paths.store(), paths.store()
+	state := application.AppState{Board: mustLoad(t, a), History: application.NewHistory(50)}
+	state = reduceAndSave(t, a, state, application.CreatePrompt{Content: "alt"})
+	id := *state.FocusedID
+	foreign, _ := mustLoad(t, b).EditPrompt(id, "neu von B", 99)
+	mustSave(t, b, foreign)
+
+	reduceAndSave(t, a, state, application.ToggleMarked{ID: id})
+
+	if got := mustLoad(t, b).LivePrompts()[0].Content; got != "neu von B" {
+		t.Fatalf("fremde Bearbeitung verloren: %q", got)
+	}
+}

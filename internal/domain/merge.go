@@ -54,17 +54,26 @@ func hasKey(index map[PromptID]Prompt, id PromptID) bool {
 	return ok
 }
 
+// resolveOne entscheidet Lebendigkeit, Content und Marked getrennt: pro Feld
+// gewinnt mine nur, wenn ich genau dieses Feld gegenüber base geändert habe.
 func resolveOne(id PromptID, base, mine, theirs map[PromptID]Prompt) (Prompt, bool) {
 	baseP, inBase := base[id]
 	mineP, inMine := mine[id]
-	if changedByMe(baseP, inBase, mineP, inMine) {
+	theirsP, inTheirs := theirs[id]
+	if livenessChangedByMe(baseP, inBase, mineP, inMine) {
 		return mineP, inMine && mineP.IsLive()
 	}
-	theirsP, inTheirs := theirs[id]
-	return theirsP, inTheirs
+	if !inTheirs {
+		// Fremd gelöscht: eine eigene Feldänderung holt den Prompt zurück.
+		return mineP, inBase && inMine && mineP.IsLive() && fieldsChanged(baseP, mineP)
+	}
+	if !inBase || !inMine {
+		return theirsP, true
+	}
+	return mergeFields(baseP, mineP, theirsP), true
 }
 
-func changedByMe(base Prompt, inBase bool, mine Prompt, inMine bool) bool {
+func livenessChangedByMe(base Prompt, inBase bool, mine Prompt, inMine bool) bool {
 	if !inBase {
 		// Grabstein ohne Basis-Eintrag: Löschung ist schon gemergt, kein neuer Änderungswunsch.
 		return inMine && mine.IsLive()
@@ -72,7 +81,22 @@ func changedByMe(base Prompt, inBase bool, mine Prompt, inMine bool) bool {
 	if !inMine {
 		return true
 	}
-	return mine.Content != base.Content || mine.Marked != base.Marked || mine.IsLive() != base.IsLive()
+	return mine.IsLive() != base.IsLive()
+}
+
+func fieldsChanged(base, mine Prompt) bool {
+	return mine.Content != base.Content || mine.Marked != base.Marked
+}
+
+func mergeFields(base, mine, theirs Prompt) Prompt {
+	merged := theirs
+	if mine.Content != base.Content {
+		merged.Content, merged.UpdatedAt = mine.Content, mine.UpdatedAt
+	}
+	if mine.Marked != base.Marked {
+		merged.Marked = mine.Marked
+	}
+	return merged
 }
 
 // sameCommonOrder: Reihenfolge der gemeinsamen IDs in a und b stimmt überein.

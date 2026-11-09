@@ -91,6 +91,53 @@ func TestMergePrompts_StaleTombstoneKeepsTheirPrompt(t *testing.T) {
 	}
 }
 
+func marked(p Prompt) Prompt {
+	p.Marked = true
+	return p
+}
+
+func TestMergePrompts_MyMarkKeepsTheirEdit(t *testing.T) {
+	got := MergePrompts([]Prompt{mk("a", "x")}, []Prompt{marked(mk("a", "x"))}, []Prompt{mk("a", "z")})
+
+	if got[0].Content != "z" {
+		t.Fatalf("erwarte z, habe %q", got[0].Content)
+	}
+}
+
+func TestMergePrompts_MyMarkWinsAgainstTheirEdit(t *testing.T) {
+	got := MergePrompts([]Prompt{mk("a", "x")}, []Prompt{marked(mk("a", "x"))}, []Prompt{mk("a", "z")})
+
+	if !got[0].Marked {
+		t.Fatal("erwarte eigene Markierung")
+	}
+}
+
+func TestMergePrompts_MyEditKeepsTheirMark(t *testing.T) {
+	got := MergePrompts([]Prompt{mk("a", "x")}, []Prompt{mk("a", "y")}, []Prompt{marked(mk("a", "x"))})
+
+	if !got[0].Marked {
+		t.Fatal("erwarte fremde Markierung")
+	}
+}
+
+func TestMergePrompts_MyEditTakesMyUpdatedAt(t *testing.T) {
+	mine := mk("a", "y")
+	mine.UpdatedAt = 7
+	got := MergePrompts([]Prompt{mk("a", "x")}, []Prompt{mine}, []Prompt{marked(mk("a", "x"))})
+
+	if got[0].UpdatedAt != 7 {
+		t.Fatalf("erwarte UpdatedAt 7, habe %d", got[0].UpdatedAt)
+	}
+}
+
+func TestMergePrompts_MyEditResurrectsTheirDelete(t *testing.T) {
+	got := MergePrompts([]Prompt{mk("a", "x")}, []Prompt{mk("a", "y")}, []Prompt{})
+
+	if want := []PromptID{"a"}; !reflect.DeepEqual(ids(got), want) {
+		t.Fatalf("erwarte %v, habe %v", want, ids(got))
+	}
+}
+
 func TestMergeSession_SentHistoryIsUnionCappedAtFive(t *testing.T) {
 	mine := Session{SentHistory: []SentHistoryEntry{{1, "a"}, {3, "c"}, {5, "e"}, {7, "g"}}}
 	theirs := Session{SentHistory: []SentHistoryEntry{{2, "b"}, {4, "d"}, {6, "f"}}}
