@@ -135,6 +135,8 @@ func TestLogTab_EditSendDeleteMarkAreNoops(t *testing.T) {
 		{Type: tea.KeyRunes, Runes: []rune("V")},
 		{Type: tea.KeyRunes, Runes: []rune("C")},
 		{Type: tea.KeyShiftUp},
+		{Type: tea.KeyRunes, Runes: []rune("u")},
+		{Type: tea.KeyRunes, Runes: []rune("r")},
 	} {
 		t.Run(k.String(), func(t *testing.T) {
 			herdr := &fakeHerdr{}
@@ -150,5 +152,18 @@ func TestLogTab_EditSendDeleteMarkAreNoops(t *testing.T) {
 				t.Fatalf("erwarte No-Op im Log-Reiter für %q", k.String())
 			}
 		})
+	}
+}
+
+func TestLogTab_UndoWithHistoryIsNoop(t *testing.T) {
+	m := newMixedScopeModel()
+	m = m.dispatch(application.CreatePrompt{Content: "neu"})
+	m = onLogTab(m)
+	before := m.state.Board
+
+	m = pressKey(m, runeKey("u"))
+
+	if !reflect.DeepEqual(m.state.Board, before) {
+		t.Fatal("erwarte kein Undo im Log-Reiter")
 	}
 }

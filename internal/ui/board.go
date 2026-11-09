@@ -11,7 +11,7 @@ import (
 // andere würde Prompts bearbeiten, senden oder die Zwischenablage berühren.
 var logTabKeys = map[string]bool{
 	"left": true, "right": true, "h": true, "q": true, "ctrl+c": true,
-	"p": true, "c": true, "u": true, "r": true,
+	"p": true, "c": true,
 }
 
 func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
