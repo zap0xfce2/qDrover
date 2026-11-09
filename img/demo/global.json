@@ -1,0 +1,61 @@
+{
+  "session": {
+    "PlanModeActive": true,
+    "ClearModeActive": false,
+    "SentHistory": [
+      {
+        "SentAt": 1794224314302,
+        "Text": "Schreibe Tests für den Login-Flow und mach sie grün"
+      },
+      {
+        "SentAt": 1794224674302,
+        "Text": "Review den letzten Commit auf Sicherheitsprobleme"
+      }
+    ]
+  },
+  "prompts": [
+    {
+      "ID": "g1",
+      "Content": "Review den letzten Commit auf Sicherheitsprobleme",
+      "Position": 0,
+      "CreatedAt": 1794224914302,
+      "UpdatedAt": 1794224914302,
+      "DeletedAt": null,
+      "Marked": true,
+      "Scope": "global"
+    },
+    {
+      "ID": "g2",
+      "Content": "Erkläre mir diese Funktion Schritt für Schritt",
+      "Position": 1,
+      "CreatedAt": 1794224914302,
+      "UpdatedAt": 1794224914302,
+      "DeletedAt": null,
+      "Marked": false,
+      "Scope": "global"
+    },
+    {
+      "ID": "g3",
+      "Content": "Schreibe eine kurze, präzise Commit-Message für die Änderungen",
+      "Position": 2,
+      "CreatedAt": 1794224914302,
+      "UpdatedAt": 1794224914302,
+      "DeletedAt": null,
+      "Marked": true,
+      "Scope": "global"
+    },
+    {
+      "ID": "g4",
+      "Content": "Finde ungenutzten Code und schlag vor, was weg kann",
+      "Position": 3,
+      "CreatedAt": 1794224914302,
+      "UpdatedAt": 1794224914302,
+      "DeletedAt": null,
+      "Marked": false,
+      "Scope": "global"
+    }
+  ],
+  "localMarks": [
+    "01a1c023-7f8e-747c-af52-ad11041b4fa5"
+  ]
+}

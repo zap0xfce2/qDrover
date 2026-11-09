@@ -36,6 +36,21 @@ tasks:
     cmds:
       - gh release create {{.QDROVER_VERSION}} dist/qdrover_linux_amd64 dist/qdrover_darwin_arm64 --title "{{.QDROVER_VERSION}}" --generate-notes
 
+  screenshot:
+    desc: README-Screenshot img/snapshot1.png per vhs aus den Demo-Daten in img/demo/ neu erzeugen
+    preconditions:
+      - sh: command -v vhs
+        msg: "vhs fehlt — installieren mit: brew install vhs"
+    cmds:
+      - rm -rf .demo
+      - mkdir -p .demo/home/.local/state/qdrover .demo/project
+      - cp img/demo/global.json .demo/home/.local/state/qdrover/global.json
+      - cp img/demo/qdrover.json .demo/project/qdrover.json
+      - go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o .demo/qdrover ./cmd/qdrover
+      # vhs überschreibt ein vorhandenes Bild stillschweigend nicht
+      - rm -f img/snapshot1.png
+      - vhs img/snapshot.tape
+
   test:
     desc: Alle Tests ausführen
     cmds:
