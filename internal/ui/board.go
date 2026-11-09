@@ -11,7 +11,7 @@ import (
 // andere würde Prompts bearbeiten, senden oder die Zwischenablage berühren.
 var logTabKeys = map[string]bool{
 	"left": true, "right": true, "h": true, "q": true, "ctrl+c": true,
-	"p": true, "c": true,
+	"p": true, "c": true, "r": true,
 }
 
 func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -47,8 +47,10 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "u":
 		return m.dispatch(application.Undo{}), nil
-	case "r":
+	case "R":
 		return m.dispatch(application.Redo{}), nil
+	case "r":
+		return m.dispatch(application.Refresh{}), nil
 	case "s":
 		return m.beginSend(application.SendSelectionToPane{Direction: ports.DirectionUp, RemoveAfterSend: true, PrefixCommands: m.activePrefixCommands()})
 	case "shift+up":

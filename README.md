@@ -11,7 +11,7 @@ qDrover verwaltet Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert u
 ## Features
 
 - **Board & Prompts** — Prompts anlegen, bearbeiten, verschieben und löschen
-- **Undo/Redo** — Snapshot-basierter Verlauf über die letzten 50 Änderungen (`u`/`r`).
+- **Undo/Redo** — Snapshot-basierter Verlauf über die letzten 50 Änderungen (`u`/`R`).
 - **Fixieren** — Prompts lassen sich mit der Leertaste dauerhaft fixieren. Ein fixierter Prompt übersteht das automatische Löschen beim Senden mit `s`.
 - **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt. Clear-Modus ist ein einmaliger "Schuss": nach erfolgreichem Senden mit `/clear`-Präfix schaltet er sich selbst wieder ab. Plan-Modus bleibt aktiv, bis er manuell mit `p` umgeschaltet wird.
 - **Reiter** — Fixiert · Global · Lokal · Log, umschaltbar mit `←`/`→`. Fixiert zeigt alle fixierten Prompts aus Global und Lokal (Herkunft als `G`/`L`). Neue Prompts landen im aktiven Reiter (in Fixiert: global und sofort fixiert).
@@ -113,7 +113,8 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | Taste | Aktion |
 |---|---|
 | `u` | Undo |
-| `r` | Redo |
+| `R` | Redo |
+| `r` | Dateien neu einlesen (z. B. nach Austausch von `qdrover.json`) |
 
 **Sonstiges**
 | Taste | Aktion |
@@ -139,7 +140,7 @@ Sendet einen einzelnen Prompt an eine Herdr-Pane, ohne das TUI zu öffnen. Die Q
 qdrover add [prompt]
 ```
 
-Legt einen lokalen Prompt in `qdrover.json` im aktuellen Verzeichnis an (Text aus den Argumenten oder stdin). Ein Prompt mit gleichem Text wird übersprungen (`bereits vorhanden`). Laufende qDrover-TUIs bekommen das sofort mit und zeigen den Prompt im Reiter Lokal.
+Legt einen lokalen Prompt in `qdrover.json` im aktuellen Verzeichnis an (Text aus den Argumenten oder stdin). Ein Prompt mit gleichem Text wird übersprungen (`bereits vorhanden`). Laufende qDrover-TUIs bekommen das sofort mit und zeigen den Prompt im Reiter Lokal. Andere Änderungen an den Dateien (z. B. eine ausgetauschte `qdrover.json`) übernimmt qDrover beim nächsten Speichern oder sofort mit `r`.
 
 ### Claude-Code-Skill `qdrover-roadmap`
 

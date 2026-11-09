@@ -17,6 +17,8 @@ tasks:
         msg: "Kein Build für {{OS}}/{{ARCH}} — dist-build baut nur linux/amd64 und darwin/arm64"
     cmds:
       - mkdir -p $HOME/bin
+      # erst löschen: cp über ein laufendes/signiertes Binary lässt macOS es per SIGKILL beenden
+      - rm -f $HOME/bin/qdrover
       - cp {{.BINARY}} $HOME/bin/qdrover
       - mkdir -p $HOME/.claude/skills/qdrover-roadmap
       - cp skills/qdrover-roadmap/SKILL.md $HOME/.claude/skills/qdrover-roadmap/SKILL.md

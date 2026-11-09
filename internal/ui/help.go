@@ -43,7 +43,8 @@ Senden an Herdr-Pane
 
 Verlauf
   u            Undo
-  r            Redo
+  R            Redo
+  r            Dateien neu einlesen (z. B. nach Austausch von qdrover.json)
 
 Sonstiges
   h            diese Hilfe anzeigen
