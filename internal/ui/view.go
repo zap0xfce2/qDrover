@@ -158,6 +158,11 @@ func (m Model) renderView() string {
 // boardBody rendert die Prompt-Liste des aktiven Reiters (bzw. dessen
 // Hinweiszeile) samt Footer unterhalb der Reiterzeile.
 func (m Model) boardBody() string {
+	if m.tab == tabLog {
+		if body := m.logBody(); body != "" {
+			return m.withFooter(body, strings.Count(body, "\n")+1)
+		}
+	}
 	live := application.VisibleLive(m.state)
 	if len(live) == 0 {
 		return m.withFooter(m.emptyTabHint(), 1)
@@ -168,6 +173,17 @@ func (m Model) boardBody() string {
 		lines = append(lines, m.promptLine(t))
 	}
 	return m.withFooter(strings.Join(lines, "\n"), end-start)
+}
+
+// logBody rendert die Sendehistory als Inhalt des Log-Reiters, bei bekannter
+// Höhe auf die verfügbaren Zeilen gekürzt (neueste zuerst bleiben erhalten).
+func (m Model) logBody() string {
+	block := m.sentHistoryBlock()
+	if block == "" || m.height <= 0 {
+		return block
+	}
+	lines := strings.Split(block, "\n")
+	return strings.Join(lines[:min(len(lines), max(m.maxVisiblePrompts(), 1))], "\n")
 }
 
 // promptLine rendert eine Prompt-Zeile: Cursor, Herkunft (nur Fixiert) und
@@ -201,19 +217,12 @@ func (m Model) withFooter(body string, bodyLines int) string {
 	return body + "\n" + footer
 }
 
-// footerLines liefert die aktiven Footer-Abschnitte (Sendehistorie,
-// Plan-/Clear-Status, Fehlermeldung) als einzelne Zeilenblöcke — leer, wenn
+// footerLines liefert die aktiven Footer-Abschnitte (Plan-/Clear-Status,
+// Fehlermeldung) als einzelne Zeilenblöcke — leer, wenn
 // nichts anzuzeigen ist. Einzige Quelle für sowohl das Rendering in View()
 // als auch die Höhenmessung in footerHeight(), damit beide nie auseinanderlaufen.
-// Plan-/Clear-Status steht bewusst nach der Historie (kurzer, fixer Text als
-// letzte Footer-Zeile) — appendVersionBanner hängt den Versions-Banner an
-// die letzte Zeile an, das lässt ihm zuverlässiger Platz als eine
-// potenziell lange, näher an die Terminalbreite reichende History-Zeile.
 func (m Model) footerLines() []string {
 	var lines []string
-	if block := m.sentHistoryBlock(); block != "" {
-		lines = append(lines, block)
-	}
 	if label := m.prefixStatusLabel(); label != "" {
 		lines = append(lines, prefixCommandStyle.Render(label))
 	}

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -20,6 +21,13 @@ var (
 func onGlobalTab(m Model) Model {
 	m.tab = tabGlobal
 	m.state.Visible = tabFilter(tabGlobal)
+	return m
+}
+
+// onLogTab schaltet auf den Log-Reiter, ohne den Fokus anzufassen.
+func onLogTab(m Model) Model {
+	m.tab = tabLog
+	m.state.Visible = tabFilter(tabLog)
 	return m
 }
 
@@ -114,5 +122,33 @@ func TestTabs_ViewNeverExceedsHeightWithTabBar(t *testing.T) {
 
 	if lines := strings.Count(m.View(), "\n") + 1; lines > m.height {
 		t.Fatalf("erwarte höchstens %d Zeilen, habe %d", m.height, lines)
+	}
+}
+
+func TestLogTab_EditSendDeleteMarkAreNoops(t *testing.T) {
+	for _, k := range []tea.KeyMsg{
+		{Type: tea.KeyEnter},
+		{Type: tea.KeyRunes, Runes: []rune("s")},
+		{Type: tea.KeyRunes, Runes: []rune("d")},
+		{Type: tea.KeyRunes, Runes: []rune(" ")},
+		{Type: tea.KeyRunes, Runes: []rune("i")},
+		{Type: tea.KeyRunes, Runes: []rune("V")},
+		{Type: tea.KeyRunes, Runes: []rune("C")},
+		{Type: tea.KeyShiftUp},
+	} {
+		t.Run(k.String(), func(t *testing.T) {
+			herdr := &fakeHerdr{}
+			clip := &fakeClipboard{}
+			m := onLogTab(newTestModel())
+			m.clipboard = clip
+			m.executor = application.NewExecutor(nullStore{}, herdr)
+			before := m.state.Board
+
+			after := runSend(t, m, k)
+
+			if !reflect.DeepEqual(after.state.Board, before) || after.mode != modeBoard || herdr.calls != 0 || clip.writeCalls != 0 {
+				t.Fatalf("erwarte No-Op im Log-Reiter für %q", k.String())
+			}
+		})
 	}
 }

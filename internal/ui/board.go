@@ -7,7 +7,17 @@ import (
 	"qdrover/internal/ports"
 )
 
+// logTabKeys sind die einzigen Tasten, die der Log-Reiter annimmt; alles
+// andere würde Prompts bearbeiten, senden oder die Zwischenablage berühren.
+var logTabKeys = map[string]bool{
+	"left": true, "right": true, "h": true, "q": true, "ctrl+c": true,
+	"p": true, "c": true, "u": true, "r": true,
+}
+
 func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.tab == tabLog && !logTabKeys[msg.String()] {
+		return m, nil
+	}
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit

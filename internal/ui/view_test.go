@@ -100,8 +100,9 @@ func TestView_BoardMode_NoPrefixActive_ShowsNoFooterLine(t *testing.T) {
 	}
 }
 
-func TestView_BoardMode_ShowsSentHistoryInFooter(t *testing.T) {
+func TestLogTab_ShowsSentHistory(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 
 	out := m.View()
@@ -122,6 +123,7 @@ func TestView_BoardMode_NoSentHistory_ShowsNoFooterLine(t *testing.T) {
 
 func TestView_BoardMode_ShowsMultipleSentHistoryEntriesInOrder(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "zweite Idee"})
 
@@ -135,6 +137,7 @@ func TestView_BoardMode_ShowsMultipleSentHistoryEntriesInOrder(t *testing.T) {
 
 func TestView_BoardMode_OlderSentHistoryEntry_IsStyledWithFadedColor(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "zweite Idee"})
 
@@ -150,8 +153,9 @@ func TestView_BoardMode_OlderSentHistoryEntry_IsStyledWithFadedColor(t *testing.
 	}
 }
 
-func TestView_EmptyBoard_ShowsSentHistoryInFooter(t *testing.T) {
+func TestLogTab_NoPrompts_ShowsSentHistory(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.state.Board.Prompts = nil
 
@@ -164,6 +168,7 @@ func TestView_EmptyBoard_ShowsSentHistoryInFooter(t *testing.T) {
 
 func TestView_BoardMode_LongSentHistoryEntry_TruncatesToOneLine(t *testing.T) {
 	m := newTestModel()
+	m = onLogTab(m)
 	m.width = 20
 	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "ein sehr langer gesendeter Text"})
 
@@ -202,7 +207,6 @@ func TestView_EmptyBoard_ShowsHint(t *testing.T) {
 
 func TestView_BoardMode_MultipleFooterSections_NoDoubleBlankLines(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "erste Idee"})
 	m.err = fmt.Errorf("Testfehler")
 
 	out := m.View()
@@ -444,16 +448,11 @@ func TestView_BoardMode_FewPromptsWithHeight_FooterPinnedToBottom(t *testing.T) 
 	m := newTestModel()
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})
 	m = updated.(Model)
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 
 	out := m.View()
 	lines := strings.Split(out, "\n")
 	if len(lines) != m.height {
 		t.Fatalf("erwarte genau %d Zeilen (Footer am unteren Rand statt Lücke), habe %d:\n%q", m.height, len(lines), out)
-	}
-	wantTimestamp := time.UnixMilli(0).Format(sentTimestampFormat)
-	if !strings.Contains(lines[len(lines)-2], wantTimestamp+" — gesendet") {
-		t.Fatalf("erwarte Sendehistory in der vorletzten Zeile, habe:\n%q", out)
 	}
 	if !strings.Contains(lines[len(lines)-1], "Plan-Modus: an") {
 		t.Fatalf("erwarte Statuszeile in der letzten Zeile, habe:\n%q", out)
@@ -494,7 +493,6 @@ func TestView_EmptyBoard_HeightSet_NoFooter_NoPadding(t *testing.T) {
 
 func TestMaxVisiblePrompts_ClampsAtZero(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
 	m = updated.(Model)
 
@@ -505,7 +503,6 @@ func TestMaxVisiblePrompts_ClampsAtZero(t *testing.T) {
 
 func TestView_BoardMode_TinyTerminal_FooterLargerThanHeight_NoPanic(t *testing.T) {
 	m := newTestModel()
-	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
 	m = updated.(Model)
 
@@ -518,4 +515,37 @@ func emptyState() application.AppState {
 
 func m0Executor() *application.Executor {
 	return application.NewExecutor(nullStore{}, nil)
+}
+
+func TestFooter_NoSentHistory(t *testing.T) {
+	m := newTestModel()
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "gesendet"})
+
+	if out := m.View(); strings.Contains(out, "— gesendet") {
+		t.Fatalf("erwarte keine Sendehistory im Footer des Global-Reiters, habe:\n%s", out)
+	}
+}
+
+func TestLogTab_ShowsSentHistoryNewestFirst(t *testing.T) {
+	m := onLogTab(newTestModel())
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "alt"})
+	m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "neu"})
+
+	out := m.View()
+	if strings.Index(out, "— neu") > strings.Index(out, "— alt") {
+		t.Fatalf("erwarte neuesten Eintrag zuerst, habe:\n%s", out)
+	}
+}
+
+func TestLogTab_FullHistory_NeverExceedsTerminalHeight(t *testing.T) {
+	m := onLogTab(newTestModel())
+	for i := 0; i < domain.MaxSentHistoryEntries; i++ {
+		m.state.Board.Session = m.state.Board.Session.RecordSent(domain.SentHistoryEntry{SentAt: 0, Text: "x"})
+	}
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = updated.(Model)
+
+	if lines := strings.Count(m.View(), "\n") + 1; lines > m.height {
+		t.Fatalf("erwarte höchstens %d Zeilen, habe %d", m.height, lines)
+	}
 }
