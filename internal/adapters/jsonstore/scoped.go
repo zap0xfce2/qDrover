@@ -103,10 +103,18 @@ func readJSON(path string, into any) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s lesen: %w", path, err)
 	}
+	if isBlank(raw) {
+		// z. B. per touch angelegt: gilt als leere Datei, nicht als Parse-Fehler.
+		return raw, nil
+	}
 	if err := json.Unmarshal(raw, into); err != nil {
 		return nil, fmt.Errorf("%s parsen: %w", path, err)
 	}
 	return raw, nil
+}
+
+func isBlank(raw []byte) bool {
+	return len(bytes.TrimSpace(raw)) == 0
 }
 
 func readGlobal(path string) (globalState, []byte, error) {
@@ -205,9 +213,9 @@ func writeGlobal(path string, state globalState, onDisk []byte) error {
 }
 
 // writeLocal legt qdrover.json nur an, wenn es lokale Prompts gibt; eine
-// bestehende Datei wird auch leer weitergeführt.
+// bestehende Datei wird auch leer weitergeführt, eine inhaltsleere bleibt unberührt.
 func writeLocal(path string, prompts []domain.Prompt, onDisk []byte) error {
-	if onDisk == nil && len(prompts) == 0 {
+	if isBlank(onDisk) && len(prompts) == 0 {
 		return nil
 	}
 	file := localFile{Prompts: make([]localPrompt, 0, len(prompts))}

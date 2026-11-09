@@ -139,6 +139,27 @@ func TestScopedStore_Load_ConflictMarkersInLocal_ErrorNamesPath(t *testing.T) {
 	}
 }
 
+func TestScopedStore_Load_EmptyLocalFile_NoError(t *testing.T) {
+	p := newScopedPaths(t)
+	mustWrite(t, p.local, " \n")
+
+	if _, err := p.store().Load(); err != nil {
+		t.Fatalf("leere qdrover.json darf kein Fehler sein: %v", err)
+	}
+}
+
+func TestScopedStore_Save_EmptyLocalFile_LeftUntouched(t *testing.T) {
+	p := newScopedPaths(t)
+	mustWrite(t, p.local, "")
+	s := p.store()
+
+	mustSave(t, s, mustLoad(t, s).AddPrompt("g1", "global", 100))
+
+	if got := mustRead(t, p.local); len(got) != 0 {
+		t.Fatalf("leere qdrover.json darf ohne lokale Prompts nicht beschrieben werden, habe %q", got)
+	}
+}
+
 func TestScopedStore_Save_CorruptLocal_GlobalNotWritten(t *testing.T) {
 	p := newScopedPaths(t)
 	s := p.store()
