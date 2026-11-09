@@ -317,29 +317,24 @@ func TestView_VersionBanner_HiddenWithoutVersion(t *testing.T) {
 	}
 }
 
-func TestAppendVersionBanner_WithKnownWidth_InlinesIntoLastLine(t *testing.T) {
+func TestAppendVersionBanner_WithKnownWidth_InlinesIntoTabBar(t *testing.T) {
 	m := newTestModel().WithVersion("v1")
-	m.width = 60 // Statuszeile ("Plan-Modus: an, Clear-Modus: an") + Banner müssen nebeneinander passen
+	m.width = 60
 
-	out := m.View()
-	lines := strings.Split(out, "\n")
-	last := lines[len(lines)-1]
-	if !strings.Contains(last, "qDrover v1") {
-		t.Fatalf("erwarte Banner in der letzten Zeile statt einer eigenen, habe:\n%q", out)
+	first := strings.Split(m.View(), "\n")[0]
+	if !strings.Contains(first, "Log") || !strings.HasSuffix(first, "qDrover v1") {
+		t.Fatalf("erwarte Banner rechtsbündig in der Reiterzeile, habe:\n%q", first)
 	}
-	if strings.Count(out, "qDrover") != 1 {
-		t.Fatalf("erwarte Banner genau einmal, habe:\n%q", out)
-	}
-	// newTestModel() hat Plan-Modus aktiv (Footer nicht leer) — der Banner
-	// muss wirklich auf derselben Zeile wie die Statuszeile landen, nicht auf
-	// einer eigenen (leeren) Zeile darunter.
-	if !strings.Contains(last, "Plan-Modus: an") {
-		t.Fatalf("erwarte Banner auf derselben Zeile wie 'Plan-Modus: an' statt auf eigener Zeile, habe:\n%q", out)
-	}
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	withoutBanner := updated.(Model).View()
-	if strings.Count(out, "\n") != strings.Count(withoutBanner, "\n") {
-		t.Fatalf("erwarte gleiche Zeilenzahl mit/ohne Banner (Banner braucht keine eigene Zeile), habe %d vs %d Newlines", strings.Count(out, "\n"), strings.Count(withoutBanner, "\n"))
+}
+
+func TestAppendVersionBanner_NeedsNoExtraLine(t *testing.T) {
+	m := newTestModel().WithVersion("v1")
+	m.width = 60
+
+	withBanner := m.View()
+	m.versionBannerDismissed = true
+	if strings.Count(withBanner, "\n") != strings.Count(m.View(), "\n") {
+		t.Fatalf("erwarte gleiche Zeilenzahl mit/ohne Banner, habe:\n%q", withBanner)
 	}
 }
 
@@ -547,5 +542,11 @@ func TestLogTab_FullHistory_NeverExceedsTerminalHeight(t *testing.T) {
 
 	if lines := strings.Count(m.View(), "\n") + 1; lines > m.height {
 		t.Fatalf("erwarte höchstens %d Zeilen, habe %d", m.height, lines)
+	}
+}
+
+func TestSentHistoryFadeColors_CoverEveryLogEntry(t *testing.T) {
+	if len(sentHistoryFadeColors) != domain.MaxSentHistoryEntries {
+		t.Fatalf("erwarte %d Farben für %d Log-Einträge, habe %d", domain.MaxSentHistoryEntries, domain.MaxSentHistoryEntries, len(sentHistoryFadeColors))
 	}
 }

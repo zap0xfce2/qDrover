@@ -138,15 +138,21 @@ func TestMergePrompts_MyEditResurrectsTheirDelete(t *testing.T) {
 	}
 }
 
-func TestMergeSession_SentHistoryIsUnionCappedAtFive(t *testing.T) {
-	mine := Session{SentHistory: []SentHistoryEntry{{1, "a"}, {3, "c"}, {5, "e"}, {7, "g"}}}
-	theirs := Session{SentHistory: []SentHistoryEntry{{2, "b"}, {4, "d"}, {6, "f"}}}
+func TestMergeSession_SentHistoryIsUnionCappedAtMax(t *testing.T) {
+	var mine, theirs Session
+	for i := 1; i <= MaxSentHistoryEntries+2; i++ {
+		entry := SentHistoryEntry{SentAt: Timestamp(i), Text: "x"}
+		if i%2 == 0 {
+			theirs.SentHistory = append(theirs.SentHistory, entry)
+		} else {
+			mine.SentHistory = append(mine.SentHistory, entry)
+		}
+	}
 
 	got := MergeSession(Session{}, mine, theirs).SentHistory
 
-	want := []SentHistoryEntry{{3, "c"}, {4, "d"}, {5, "e"}, {6, "f"}, {7, "g"}}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("erwarte %v, habe %v", want, got)
+	if got[0].SentAt != 3 || len(got) != MaxSentHistoryEntries {
+		t.Fatalf("erwarte die %d neuesten Einträge ab Zeitstempel 3, habe %v", MaxSentHistoryEntries, got)
 	}
 }
 

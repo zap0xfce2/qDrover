@@ -15,7 +15,7 @@ qDrover verwaltet Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert u
 - **Fixieren** — Prompts lassen sich mit der Leertaste dauerhaft fixieren. Ein fixierter Prompt übersteht das automatische Löschen beim Senden mit `s`.
 - **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt. Clear-Modus ist ein einmaliger "Schuss": nach erfolgreichem Senden mit `/clear`-Präfix schaltet er sich selbst wieder ab. Plan-Modus bleibt aktiv, bis er manuell mit `p` umgeschaltet wird.
 - **Reiter** — Fixiert · Global · Lokal · Log, umschaltbar mit `←`/`→`. Fixiert zeigt alle fixierten Prompts aus Global und Lokal (Herkunft als `G`/`L`). Neue Prompts landen im aktiven Reiter (in Fixiert: global und sofort fixiert).
-- **Log** — die letzten 5 gesendeten Texte mit Zeitstempel im Log-Reiter (nur lesend).
+- **Log** — die letzten 10 gesendeten Texte mit Zeitstempel im Log-Reiter (nur lesend).
 - **Fünf Sende-Tasten**, alle senden an die Nachbar-Pane in der jeweiligen Richtung bzw. nach oben:
   | Taste | Aktion |
   |---|---|
@@ -47,7 +47,7 @@ Ohne `HERDR_ENV=1` funktioniert qDrover weiterhin als reines lokales Board — n
 Mit `go-task` (bevorzugt):
 
 ```
-task install     # baut dist/ und installiert das Linux-Binary nach ~/bin/qdrover
+task install     # baut dist/ und installiert das Binary für die eigene Plattform (Linux amd64 / macOS arm64) nach ~/bin/qdrover
 task dist-build   # Cross-Builds nach dist/ (Linux amd64, macOS arm64)
 task release      # dist/-Binaries als GitHub Release hochladen
 task run          # TUI direkt starten

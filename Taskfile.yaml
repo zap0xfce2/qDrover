@@ -8,24 +8,29 @@ vars:
 
 tasks:
   install:
-    desc: Linux-Binary aus dist/ nach ~/bin/qdrover installieren
+    desc: Passendes Binary für diese Plattform aus dist/ nach ~/bin/qdrover installieren
     deps: [dist-build]
+    vars:
+      BINARY: dist/qdrover_{{OS}}_{{ARCH}}
+    preconditions:
+      - sh: test -f {{.BINARY}}
+        msg: "Kein Build für {{OS}}/{{ARCH}} — dist-build baut nur linux/amd64 und darwin/arm64"
     cmds:
       - mkdir -p $HOME/bin
-      - cp dist/qdrover_amd64 $HOME/bin/qdrover
+      - cp {{.BINARY}} $HOME/bin/qdrover
 
   dist-build:
     desc: Cross-Builds nach dist/ (Linux amd64, macOS arm64) — nicht installiert
     cmds:
       - mkdir -p dist
-      - GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_amd64 ./cmd/qdrover
-      - GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_arm64 ./cmd/qdrover
+      - GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_linux_amd64 ./cmd/qdrover
+      - GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version={{.QDROVER_VERSION}}" -o dist/qdrover_darwin_arm64 ./cmd/qdrover
 
   release:
     desc: GitHub Release mit den dist/-Binaries erstellen (gh CLI muss installiert & angemeldet sein)
     deps: [dist-build]
     cmds:
-      - gh release create {{.QDROVER_VERSION}} dist/qdrover_amd64 dist/qdrover_arm64 --title "{{.QDROVER_VERSION}}" --generate-notes
+      - gh release create {{.QDROVER_VERSION}} dist/qdrover_linux_amd64 dist/qdrover_darwin_arm64 --title "{{.QDROVER_VERSION}}" --generate-notes
 
   test:
     desc: Alle Tests ausführen
