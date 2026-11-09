@@ -8,6 +8,7 @@ import (
 
 type fakeStore struct {
 	boards map[domain.SessionID]domain.Board
+	merged *domain.Board
 }
 
 func newFakeStore() *fakeStore { return &fakeStore{boards: map[domain.SessionID]domain.Board{}} }
@@ -19,6 +20,14 @@ func (s *fakeStore) LoadSession(id domain.SessionID) (domain.Board, error) {
 func (s *fakeStore) SaveSession(board domain.Board) error {
 	s.boards[board.Session.ID] = board
 	return nil
+}
+
+func (s *fakeStore) Save(board domain.Board) (domain.Board, error) {
+	s.boards[board.Session.ID] = board
+	if s.merged != nil {
+		return *s.merged, nil
+	}
+	return board, nil
 }
 
 func (s *fakeStore) ListSessions() ([]domain.Session, error) {

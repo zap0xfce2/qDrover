@@ -7,7 +7,13 @@ import (
 	"qdrover/internal/ports"
 )
 
-func LoadOrCreateBoard(store ports.Store, cwd string, clock ports.Clock, ids ports.IDGenerator) (domain.Board, error) {
+type SessionStore interface {
+	ListSessions() ([]domain.Session, error)
+	LoadSession(id domain.SessionID) (domain.Board, error)
+	SaveSession(board domain.Board) error
+}
+
+func LoadOrCreateBoard(store SessionStore, cwd string, clock ports.Clock, ids ports.IDGenerator) (domain.Board, error) {
 	sessions, err := store.ListSessions()
 	if err != nil {
 		return domain.Board{}, fmt.Errorf("sessions auflisten: %w", err)

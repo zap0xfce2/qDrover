@@ -26,9 +26,7 @@ func (g *fakeIDGen) NewSessionID() domain.SessionID { return "s1" }
 
 type nullStore struct{}
 
-func (nullStore) LoadSession(id domain.SessionID) (domain.Board, error) { return domain.Board{}, nil }
-func (nullStore) SaveSession(board domain.Board) error                  { return nil }
-func (nullStore) ListSessions() ([]domain.Session, error)               { return nil, nil }
+func (nullStore) Save(board domain.Board) (domain.Board, error) { return board, nil }
 
 // fakeHerdr lässt ResolveAndPromptWithPrefix erfolgreich "senden", außer err
 // ist gesetzt — für Tests, die einen tatsächlich erfolgreichen bzw.

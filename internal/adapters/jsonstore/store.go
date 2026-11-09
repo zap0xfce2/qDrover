@@ -30,6 +30,11 @@ func (s *FileStore) sessionPath(id domain.SessionID) string {
 	return filepath.Join(s.dir, string(id)+".json")
 }
 
+// Übergang bis zur Migration auf ScopedStore
+func (s *FileStore) Save(board domain.Board) (domain.Board, error) {
+	return board, s.SaveSession(board)
+}
+
 func (s *FileStore) SaveSession(board domain.Board) error {
 	data, err := json.MarshalIndent(fileFormat{Session: board.Session, Prompts: board.Prompts}, "", "  ")
 	if err != nil {

@@ -108,9 +108,13 @@ func (m Model) dispatch(action application.Action) Model {
 	m.err = nil
 	ctx, cancel := context.WithTimeout(context.Background(), herdrCallTimeout)
 	defer cancel()
-	if execErr := m.executor.Execute(ctx, effects); execErr != nil {
+	merged, execErr := m.executor.Execute(ctx, effects)
+	if execErr != nil {
 		m.err = execErr
 		return m
+	}
+	if merged != nil {
+		m.state, _, _ = application.Reduce(m.state, application.ApplyMerged{Board: *merged}, m.clock, m.ids)
 	}
 	return m.recordSentHistory(effects)
 }
@@ -191,7 +195,7 @@ func sendCmd(executor *application.Executor, effects []application.Effect, remov
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), herdrCallTimeout)
 		defer cancel()
-		err := executor.Execute(ctx, effects)
+		_, err := executor.Execute(ctx, effects)
 		return sendResultMsg{effects: effects, removedIDs: removedIDs, err: err}
 	}
 }
