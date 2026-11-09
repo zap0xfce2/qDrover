@@ -22,7 +22,6 @@ func (g *fakeIDGen) NewPromptID() domain.PromptID {
 	g.next++
 	return domain.PromptID("t" + string(rune('0'+g.next)))
 }
-func (g *fakeIDGen) NewSessionID() domain.SessionID { return "s1" }
 
 type nullStore struct{}
 

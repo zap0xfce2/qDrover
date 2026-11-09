@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -16,15 +14,13 @@ import (
 	"qdrover/internal/adapters/uuidgen"
 	"qdrover/internal/application"
 	"qdrover/internal/domain"
-	"qdrover/internal/ports"
 	"qdrover/internal/ui"
 )
 
 const (
-	undoHistoryDepth      = 50
-	globalFileName        = "global.json"
-	localFileName         = "qdrover.json"
-	legacySessionsDirName = "sessions"
+	undoHistoryDepth = 50
+	globalFileName   = "global.json"
+	localFileName    = "qdrover.json"
 )
 
 func defaultStateDir() (string, error) {
@@ -35,64 +31,15 @@ func defaultStateDir() (string, error) {
 	return filepath.Join(home, ".local", "state", "qdrover"), nil
 }
 
-// bootBoard lädt das Board; fehlt global.json, werden einmalig die Alt-Sessions
-// aus stateRoot/sessions migriert (die Alt-Dateien bleiben unangetastet).
-func bootBoard(stateRoot, cwd string, clock ports.Clock, ids ports.IDGenerator) (domain.Board, *jsonstore.ScopedStore, error) {
-	globalPath := filepath.Join(stateRoot, globalFileName)
-	_, err := os.Stat(globalPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		err = migrateLegacySessions(stateRoot, cwd, clock, ids)
-	}
-	if err != nil {
-		return domain.Board{}, nil, err
-	}
-	store := jsonstore.NewScopedStore(globalPath, filepath.Join(cwd, localFileName))
+// bootBoard lädt global.json und cwd/qdrover.json. Fehlt global.json, startet
+// es mit leerem Board; die Datei entsteht beim ersten Speichern.
+func bootBoard(stateRoot, cwd string) (domain.Board, *jsonstore.ScopedStore, error) {
+	store := jsonstore.NewScopedStore(filepath.Join(stateRoot, globalFileName), filepath.Join(cwd, localFileName))
 	board, err := store.Load()
 	if err != nil {
 		return domain.Board{}, nil, fmt.Errorf("board laden: %w", err)
 	}
 	return board, store, nil
-}
-
-func migrateLegacySessions(stateRoot, cwd string, clock ports.Clock, ids ports.IDGenerator) error {
-	boards, err := loadLegacyBoards(filepath.Join(stateRoot, legacySessionsDirName))
-	if err != nil {
-		return err
-	}
-	migrated := application.MigrateSessions(boards)
-	if len(boards) == 0 {
-		now := clock.Now()
-		migrated.Session = domain.Session{ID: ids.NewSessionID(), OriginCwd: cwd, CreatedAt: now, LastOpenedAt: now}
-	}
-	// Eigener Store ohne cwd-Bezug: migrierte Prompts sind global, es entsteht keine qdrover.json.
-	writer := jsonstore.NewScopedStore(filepath.Join(stateRoot, globalFileName), filepath.Join(stateRoot, localFileName))
-	if _, err := writer.Save(migrated); err != nil {
-		return fmt.Errorf("migration schreiben: %w", err)
-	}
-	return nil
-}
-
-func loadLegacyBoards(sessionsDir string) ([]domain.Board, error) {
-	if _, err := os.Stat(sessionsDir); errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	legacy, err := jsonstore.NewFileStore(sessionsDir)
-	if err != nil {
-		return nil, err
-	}
-	sessions, err := legacy.ListSessions()
-	if err != nil {
-		return nil, fmt.Errorf("alt-sessions auflisten: %w", err)
-	}
-	boards := make([]domain.Board, 0, len(sessions))
-	for _, session := range sessions {
-		board, err := legacy.LoadSession(session.ID)
-		if err != nil {
-			return nil, err
-		}
-		boards = append(boards, board)
-	}
-	return boards, nil
 }
 
 func runTUI() error {
@@ -109,7 +56,7 @@ func runTUI() error {
 	ids := uuidgen.New()
 	clip := clipboard.New()
 
-	board, store, err := bootBoard(stateRoot, cwd, clock, ids)
+	board, store, err := bootBoard(stateRoot, cwd)
 	if err != nil {
 		return err
 	}
@@ -120,11 +67,10 @@ func runTUI() error {
 
 	model := ui.New(state, executor, clock, ids, clip).WithVersion(version)
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	stopListening, err := listenForRefresh(filepath.Join(stateRoot, runDirName), os.Getpid(), func() { p.Send(ui.RefreshMsg{}) })
-	if err != nil {
-		return err
+	// Live-Refresh ist optional: ohne Socket (z. B. Pfad > ~104 Zeichen) läuft die TUI ohne ihn weiter.
+	if stopListening, err := listenForRefresh(filepath.Join(stateRoot, runDirName), os.Getpid(), func() { p.Send(ui.RefreshMsg{}) }); err == nil {
+		defer stopListening()
 	}
-	defer stopListening()
 	_, err = p.Run()
 	return err
 }

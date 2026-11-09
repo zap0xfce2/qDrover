@@ -18,8 +18,6 @@ func (g *fakeIDGen) NewPromptID() domain.PromptID {
 	return domain.PromptID("t" + string(rune('0'+g.next)))
 }
 
-func (g *fakeIDGen) NewSessionID() domain.SessionID { return "s1" }
-
 func TestReduce_CreatePrompt_AddsPromptAndPersistEffect(t *testing.T) {
 	state := AppState{Board: domain.Board{}, History: NewHistory(50)}
 	clock := fakeClock{now: 100}

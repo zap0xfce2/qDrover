@@ -396,8 +396,6 @@ func (g *countingIDs) NewPromptID() domain.PromptID {
 	return domain.PromptID(string(rune('a' + g.next)))
 }
 
-func (g *countingIDs) NewSessionID() domain.SessionID { return "s" }
-
 // reduceAndSave spielt den UI-Pfad nach: Reduce, PersistBoard speichern, Merge zurückspielen.
 func reduceAndSave(t *testing.T, s *ScopedStore, state application.AppState, action application.Action) application.AppState {
 	t.Helper()
