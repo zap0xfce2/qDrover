@@ -553,3 +553,65 @@ func TestReduce_CreatePrompt_InvisibleNewPrompt_FocusStaysVisible(t *testing.T) 
 		t.Fatalf("erwarte Fokus g1, habe %v", state.FocusedID)
 	}
 }
+
+// mergedWithForeign liefert das aktuelle Board plus einen fremden Prompt, so wie es ein Save-Merge zurückgäbe.
+func mergedWithForeign(board domain.Board) domain.Board {
+	return board.AddScopedPrompt("foreign", "von B", domain.ScopeGlobal, 50)
+}
+
+func TestReduce_UndoAfterApplyMerged_KeepsForeignPrompt(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	clock, ids := fakeClock{now: 100}, &fakeIDGen{}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "mine"}, clock, ids)
+	state, _, _ = Reduce(state, ApplyMerged{Board: mergedWithForeign(state.Board)}, clock, ids)
+
+	state, _, _ = Reduce(state, Undo{}, clock, ids)
+
+	if got := state.Board.LivePrompts(); len(got) != 1 || got[0].ID != "foreign" {
+		t.Fatalf("erwarte nur foreign, habe %+v", got)
+	}
+}
+
+func TestReduce_UndoAfterApplyMerged_KeepsForeignEdit(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	clock, ids := fakeClock{now: 100}, &fakeIDGen{}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "a"}, clock, ids)
+	first := *state.FocusedID
+	state, _, _ = Reduce(state, CreatePrompt{Content: "b"}, clock, ids)
+	foreignEdit, _ := state.Board.EditPrompt(first, "fremd", 99)
+	state, _, _ = Reduce(state, ApplyMerged{Board: foreignEdit}, clock, ids)
+
+	state, _, _ = Reduce(state, Undo{}, clock, ids)
+
+	if got := state.Board.LivePrompts()[0].Content; got != "fremd" {
+		t.Fatalf("erwarte fremd, habe %q", got)
+	}
+}
+
+func TestReduce_RedoAfterApplyMerged_KeepsForeignPrompt(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	clock, ids := fakeClock{now: 100}, &fakeIDGen{}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "mine"}, clock, ids)
+	state, _, _ = Reduce(state, Undo{}, clock, ids)
+	state, _, _ = Reduce(state, ApplyMerged{Board: mergedWithForeign(state.Board)}, clock, ids)
+
+	state, _, _ = Reduce(state, Redo{}, clock, ids)
+
+	if got := len(state.Board.LivePrompts()); got != 2 {
+		t.Fatalf("erwarte mine+foreign, habe %+v", state.Board.LivePrompts())
+	}
+}
+
+func TestReduce_UndoOwnDeleteAfterApplyMerged_RestoresPrompt(t *testing.T) {
+	state := AppState{History: NewHistory(50)}
+	clock, ids := fakeClock{now: 100}, &fakeIDGen{}
+	state, _, _ = Reduce(state, CreatePrompt{Content: "x"}, clock, ids)
+	state, _, _ = Reduce(state, DeletePrompt{ID: *state.FocusedID}, clock, ids)
+	state, _, _ = Reduce(state, ApplyMerged{Board: mergedWithForeign(domain.Board{})}, clock, ids)
+
+	state, _, _ = Reduce(state, Undo{}, clock, ids)
+
+	if got := len(state.Board.LivePrompts()); got != 2 {
+		t.Fatalf("erwarte x+foreign, habe %+v", state.Board.LivePrompts())
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"qdrover/internal/application"
 	"qdrover/internal/domain"
 )
 
@@ -360,5 +361,50 @@ func TestScopedStore_UnchangedLocal_NotRewritten(t *testing.T) {
 	info, err := os.Stat(p.local)
 	if err != nil || !info.ModTime().Equal(past) {
 		t.Fatalf("qdrover.json neu geschrieben (mtime %v, err %v)", info.ModTime(), err)
+	}
+}
+
+type countingClock struct{ now domain.Timestamp }
+
+func (c *countingClock) Now() domain.Timestamp { c.now++; return c.now }
+
+type countingIDs struct{ next int }
+
+func (g *countingIDs) NewPromptID() domain.PromptID {
+	g.next++
+	return domain.PromptID(string(rune('a' + g.next)))
+}
+
+func (g *countingIDs) NewSessionID() domain.SessionID { return "s" }
+
+// reduceAndSave spielt den UI-Pfad nach: Reduce, PersistBoard speichern, Merge zurückspielen.
+func reduceAndSave(t *testing.T, s *ScopedStore, state application.AppState, action application.Action) application.AppState {
+	t.Helper()
+	clock, ids := &countingClock{now: 1000}, &countingIDs{}
+	state, effects, err := application.Reduce(state, action, clock, ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, effect := range effects {
+		if persist, ok := effect.(application.PersistBoard); ok {
+			merged := mustSave(t, s, persist.Board)
+			state, _, _ = application.Reduce(state, application.ApplyMerged{Board: merged}, clock, ids)
+		}
+	}
+	return state
+}
+
+func TestScopedStore_UndoAfterForeignAdd_KeepsForeignPrompt(t *testing.T) {
+	paths := newScopedPaths(t)
+	a, b := paths.store(), paths.store()
+	state := application.AppState{Board: mustLoad(t, a), History: application.NewHistory(50)}
+	state = reduceAndSave(t, a, state, application.CreatePrompt{Content: "mine"})
+	mustSave(t, b, mustLoad(t, b).AddScopedPrompt("foreign", "von B", domain.ScopeGlobal, 50))
+
+	state = reduceAndSave(t, a, state, application.TogglePlanMode{})
+	reduceAndSave(t, a, state, application.Undo{})
+
+	if _, ok := findPrompt(mustLoad(t, b), "foreign"); !ok {
+		t.Fatalf("fremder Prompt verloren: %+v", mustLoad(t, b).Prompts)
 	}
 }

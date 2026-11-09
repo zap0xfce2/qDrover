@@ -118,6 +118,7 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 
 	case ApplyMerged:
 		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
+		state.History.Rebase(rebaseOnto(state.Board.Prompts, a.Board.Prompts))
 		state.Board = mergeKeepingSoftDeleted(state.Board, a.Board)
 		return reconcileFocus(state, prevIndex), nil, nil
 
@@ -206,6 +207,16 @@ func VisibleLive(state AppState) []domain.Prompt {
 		}
 	}
 	return append(global, local...)
+}
+
+// rebaseOnto überträgt die Änderungen von before nach merged auf einen
+// History-Snapshot; die eigenen Abweichungen des Snapshots bleiben erhalten,
+// ebenso seine soft-gelöschten Prompts (für Undo eigener Löschungen).
+func rebaseOnto(before, merged []domain.Prompt) func([]domain.Prompt) []domain.Prompt {
+	return func(snapshot []domain.Prompt) []domain.Prompt {
+		rebased := domain.Board{Prompts: domain.MergePrompts(before, snapshot, merged)}
+		return mergeKeepingSoftDeleted(domain.Board{Prompts: snapshot}, rebased).Prompts
+	}
 }
 
 // mergeKeepingSoftDeleted behält soft-gelöschte Prompts des alten Boards, die
