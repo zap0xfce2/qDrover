@@ -49,13 +49,22 @@ func tabFilter(t tab) func(domain.Prompt) bool {
 	}
 }
 
-// applyTab aktiviert t, fokussiert den ersten sichtbaren Prompt und setzt das
-// Scroll-Fenster zurück.
+// applyTab merkt sich Fokus und Scroll-Fenster des alten Reiters und stellt die
+// des neuen wieder her; ist der gemerkte Prompt dort nicht mehr sichtbar, greift
+// der erste sichtbare Prompt.
 func (m Model) applyTab(t tab) Model {
+	m.tabFocus[m.tab] = m.state.FocusedID
+	m.tabScroll[m.tab] = m.listScrollStart
 	m.tab = t
 	m.state.Visible = tabFilter(t)
+	live := application.VisibleLive(m.state)
+	if focusedIndex(live, m.tabFocus[t]) >= 0 {
+		m.state.FocusedID = m.tabFocus[t]
+		m.listScrollStart = m.tabScroll[t]
+		return m
+	}
 	m.state.FocusedID = nil
-	if live := application.VisibleLive(m.state); len(live) > 0 {
+	if len(live) > 0 {
 		m.state.FocusedID = &live[0].ID
 	}
 	m.listScrollStart = 0

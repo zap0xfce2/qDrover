@@ -212,3 +212,25 @@ func TestLogTab_UndoWithHistoryIsNoop(t *testing.T) {
 		t.Fatal("erwarte kein Undo im Log-Reiter")
 	}
 }
+
+func TestTabs_FocusIsRestoredPerTab(t *testing.T) {
+	m := newMixedScopeModel().applyTab(tabAll)
+	m = pressKey(m, runeKey("j"))
+	m = pressKey(pressKey(m, keyRight), keyLeft)
+
+	if *m.state.FocusedID != domain.PromptID("g2") {
+		t.Fatalf("erwarte wiederhergestellten Fokus g2, habe %s", *m.state.FocusedID)
+	}
+}
+
+func TestTabs_DeletedFocusFallsBackToFirst(t *testing.T) {
+	m := newMixedScopeModel().applyTab(tabAll)
+	m = pressKey(m, runeKey("j"))
+	m = m.applyTab(tabGlobal)
+	m.state.Board, _ = m.state.Board.DeletePrompt("g2", 100)
+	m = m.applyTab(tabAll)
+
+	if *m.state.FocusedID != domain.PromptID("g1") {
+		t.Fatalf("erwarte Rückfall auf g1, habe %s", *m.state.FocusedID)
+	}
+}
