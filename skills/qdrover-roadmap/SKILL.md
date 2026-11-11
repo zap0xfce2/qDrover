@@ -10,24 +10,25 @@ Keeps the project's local qDrover list in sync with the roadmap: one self-contai
 ## Steps
 
 1. **Find the roadmap.** It lives wherever this project keeps it: a `## Roadmap` section in `README.md`, a `ROADMAP.md`, a section in `CLAUDE.md`, or similar. Use what you already know about the project; search if unsure. If there is no roadmap, say so and stop.
-2. **Pick open topics only.** Skip items marked done, struck through or checked off.
-3. **Read the existing local prompts** from `qdrover.json` in the project root (read only; may not exist yet). Each entry has an `id` and a `content` whose first line is the headline.
-4. **Write one prompt per new topic** (topics that already have a matching prompt — same `#<number>` prefix or same meaning — are left alone) that Claude Code could execute in a fresh session without this conversation. The prompt may be as detailed as the topic needs, but it must have this shape:
-   - **Line 1: a short headline** summarising this prompt (roughly 3–8 words, no trailing period), e.g. `Session-Migration entfernen` or `README-Screenshot erneuern`. If the roadmap entry has a number, prefix it as `#<number> `, e.g. `#3 Session-Migration entfernen`, so the number is visible in qDrover. Use the roadmap's own number; never invent one for unnumbered roadmaps — then no prefix. qDrover shows the start of the first line as the list preview, so every headline must be distinct from the others and from existing prompts. Never start several prompts with the same words (no generic openers like "Entferne die …", "Bitte …", "Aufgabe:").
+2. **Make sure every roadmap item is numbered.** qDrover matches prompts to topics by these numbers, so they must be unique and stable. Format: an ordered list `1. Topic`, `2. Topic`, `3. Topic`, … If items lack a number, edit the roadmap file and add them: keep existing numbers untouched, give each unnumbered item (open, done or struck alike) the next free number after the current highest, in document order. Never renumber or reuse a number, even when items are reordered or removed. Mention the added numbers in the report.
+3. **Pick open topics only.** Skip items marked done, struck through or checked off.
+4. **Read the existing local prompts** from `qdrover.json` in the project root (read only; may not exist yet). Each entry has an `id` and a `content` whose first line is the headline.
+5. **Write one prompt per new topic** (topics that already have a matching prompt — same `#<number>` prefix or same meaning — are left alone) that Claude Code could execute in a fresh session without this conversation. The prompt may be as detailed as the topic needs, but it must have this shape:
+   - **Line 1: a short headline** summarising this prompt (roughly 3–8 words, no trailing period), e.g. `Session-Migration entfernen` or `README-Screenshot erneuern`. Always prefix it with the roadmap number as `#<number> `, e.g. `#3 Session-Migration entfernen`, so the number is visible in qDrover. qDrover shows the start of the first line as the list preview, so every headline must be distinct from the others and from existing prompts. Never start several prompts with the same words (no generic openers like "Entferne die …", "Bitte …", "Aufgabe:").
    - **Line 2: empty.**
    - **Then the body:** the goal in one sentence, the relevant context (files, constraints, conventions of this project) and what "done" means.
    - Same language as the roadmap entry. No reference to "the roadmap" or this conversation.
-5. **Add each prompt** from the project root (the directory that owns `qdrover.json`), one call per prompt. Prompts are multi-line, so pass them via stdin with `printf`, one argument per line and single quotes so backticks and `$` are not expanded by the shell (write a literal `'` as `'\''`):
+6. **Add each prompt** from the project root (the directory that owns `qdrover.json`), one call per prompt. Prompts are multi-line, so pass them via stdin with `printf`, one argument per line and single quotes so backticks and `$` are not expanded by the shell (write a literal `'` as `'\''`):
 
    ```bash
    printf '%s\n' 'Session-Migration entfernen' '' 'Entferne die einmalige Migration …' 'Fertig ist es, wenn …' | qdrover add
    ```
 
    Do not edit `qdrover.json` by hand — `qdrover add` assigns IDs, merges safely with running instances and notifies them.
-6. **Remove obsolete prompts.** A local prompt is obsolete when its topic is now struck through, marked done or no longer in the roadmap. Match by `#<number>` prefix first, then by meaning, not exact text. Leave existing prompts without a number as they are; do not renumber them. Only remove prompts that clearly belong to a roadmap topic; leave prompts unrelated to the roadmap untouched. If unsure, ask the user instead of removing. One call per prompt, from the project root:
+7. **Remove obsolete prompts.** A local prompt is obsolete when its topic is now struck through, marked done or no longer in the roadmap. Match by `#<number>` prefix first, then by meaning, not exact text. Older prompts without a number are matched by meaning only; leave them as they are. Only remove prompts that clearly belong to a roadmap topic; leave prompts unrelated to the roadmap untouched. If unsure, ask the user instead of removing. One call per prompt, from the project root:
 
    ```bash
    qdrover remove <id>
    ```
 
-7. **Report** in a short list: which prompts were added (`hinzugefügt:`), skipped as duplicates (`bereits vorhanden:`) and removed (`gelöscht:` with headline). If `qdrover` is not installed, tell the user to run `task install` in the qDrover repo.
+8. **Report** in a short list: which prompts were added (`hinzugefügt:`), skipped as duplicates (`bereits vorhanden:`) and removed (`gelöscht:` with headline), plus roadmap items that just got a number (`nummeriert:`). If `qdrover` is not installed, tell the user to run `task install` in the qDrover repo.
