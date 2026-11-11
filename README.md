@@ -145,7 +145,7 @@ Legt einen lokalen Prompt in `qdrover.json` im aktuellen Verzeichnis an (Text au
 
 ### Claude-Code-Skill `qdrover-roadmap`
 
-`task install` installiert zusätzlich den Skill nach `~/.claude/skills/qdrover-roadmap/`. Sagt man in Claude Code z. B. „mach aus der Roadmap Prompts“, sucht Claude die Roadmap des Projekts (README, `ROADMAP.md`, `CLAUDE.md`, …), formuliert pro offenem Thema einen eigenständigen Prompt und legt ihn per `qdrover add` an — bei nummerierten Roadmaps mit der Nummer vorne in der ersten Zeile (z. B. `#3 Session-Migration entfernen`), damit sie in der Liste sichtbar ist. Gestrichene oder erledigte Themen entfernt er per `qdrover remove` wieder aus der Liste.
+`task install` installiert zusätzlich den Skill nach `~/.claude/skills/qdrover-roadmap/`. Sagt man in Claude Code z. B. „mach aus der Roadmap Prompts“, sucht Claude die Roadmap des Projekts (README, `ROADMAP.md`, `CLAUDE.md`, …), nummeriert deren Punkte fortlaufend (`1.`, `2.`, `3.`, …), falls das noch fehlt, formuliert pro offenem Thema einen eigenständigen Prompt und legt ihn per `qdrover add` an — mit der Roadmap-Nummer vorne in der ersten Zeile (z. B. `#3 Session-Migration entfernen`), damit sie in der Liste sichtbar ist. Gestrichene oder erledigte Themen entfernt er per `qdrover remove` wieder aus der Liste.
 
 ```
 qdrover remove <id>
