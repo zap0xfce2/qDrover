@@ -58,6 +58,10 @@ type Model struct {
 	// Prompt-Fensters für vim-artiges verankertes statt zentriertes
 	// Scrollen (siehe anchoredWindow in view.go, syncScroll unten).
 	listScrollStart int
+	// tabFocus/tabScroll: Fokus und Scroll-Fenster je Reiter, nur für diese
+	// Sitzung (Arrays statt Maps, damit Model-Kopien sich nichts teilen).
+	tabFocus  [tabLog + 1]*domain.PromptID
+	tabScroll [tabLog + 1]int
 	// sending: true während ein per beginSend gestarteter Herdr-Versand im
 	// Hintergrund läuft. Blockiert weitere Sende-Tasten (s/S/Shift-Pfeile),
 	// bis sendResultMsg eintrifft — verhindert interleavende Herdr-Subprozess-
