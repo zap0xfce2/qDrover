@@ -98,3 +98,29 @@ func TestRemove_ByRoadmapNumber_DeletesPrompt(t *testing.T) {
 		t.Fatalf("erwarte keinen lebenden Prompt mehr, habe %+v", live)
 	}
 }
+
+func TestEdit_ByDotNumber_ReplacesContent(t *testing.T) {
+	stateRoot, cwd := t.TempDir(), t.TempDir()
+	addPrompts(t, stateRoot, cwd, "2. Zweites\n\nText", "20. Zwanzigstes\n\nText")
+
+	if err := runEdit([]string{"20", "20. Neu"}, strings.NewReader(""), &bytes.Buffer{}, stateRoot, cwd, stubClock{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := contentOf(t, stateRoot, cwd, "p-2"); got != "20. Neu" {
+		t.Fatalf("unerwarteter Inhalt %q", got)
+	}
+}
+
+func TestRemove_ByDotNumberRef_DeletesPrompt(t *testing.T) {
+	stateRoot, cwd := t.TempDir(), t.TempDir()
+	addPrompts(t, stateRoot, cwd, "3. Gestrichen")
+
+	if err := runRemove([]string{"3."}, &bytes.Buffer{}, stateRoot, cwd, stubClock{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if live := loadBoardIn(t, stateRoot, cwd).LivePrompts(); len(live) != 0 {
+		t.Fatalf("erwarte keinen lebenden Prompt mehr, habe %+v", live)
+	}
+}

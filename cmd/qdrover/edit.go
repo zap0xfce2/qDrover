@@ -57,11 +57,11 @@ func runEdit(args []string, stdin io.Reader, out io.Writer, stateRoot, cwd strin
 	return nil
 }
 
-// resolveLocalPromptRef löst eine Prompt-ID oder eine Roadmap-Nummer ("3" bzw. "#3")
-// zur ID eines lebenden lokalen Prompts auf. Die Nummer steht als "#<n> " am Anfang
-// der ersten Zeile (Konvention des Roadmap-Skills).
+// resolveLocalPromptRef löst eine Prompt-ID oder eine Roadmap-Nummer ("3", "#3" bzw. "3.")
+// zur ID eines lebenden lokalen Prompts auf. Die Nummer steht als "<n>. " (Roadmap-Skill)
+// oder als älteres "#<n> " am Anfang der ersten Zeile.
 func resolveLocalPromptRef(board domain.Board, ref string) (domain.PromptID, error) {
-	number := strings.TrimPrefix(ref, "#")
+	number := strings.TrimSuffix(strings.TrimPrefix(ref, "#"), ".")
 	if _, err := strconv.Atoi(number); err != nil {
 		if !hasLocalPromptID(board, domain.PromptID(ref)) {
 			return "", fmt.Errorf("kein lokaler prompt mit id %s", ref)
@@ -76,7 +76,7 @@ func findLocalPromptByNumber(board domain.Board, number string) (domain.PromptID
 	var matches []domain.PromptID
 	for _, p := range board.LivePrompts() {
 		headline, _, _ := strings.Cut(p.Content, "\n")
-		if p.IsLocal() && (headline == prefix || strings.HasPrefix(headline, prefix+" ")) {
+		if p.IsLocal() && (hasNumberPrefix(headline, prefix) || hasNumberPrefix(headline, number+".")) {
 			matches = append(matches, p.ID)
 		}
 	}
@@ -88,4 +88,9 @@ func findLocalPromptByNumber(board domain.Board, number string) (domain.PromptID
 	default:
 		return "", fmt.Errorf("nummer %s ist mehrdeutig (%d prompts), bitte per id angeben", prefix, len(matches))
 	}
+}
+
+// hasNumberPrefix prüft, ob die Headline genau mit prefix beginnt — "12." soll nicht auf "1." passen.
+func hasNumberPrefix(headline, prefix string) bool {
+	return headline == prefix || strings.HasPrefix(headline, prefix+" ")
 }
