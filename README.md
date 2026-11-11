@@ -14,7 +14,7 @@ qDrover verwaltet Text-Prompts, die im Terminal angelegt, bearbeitet, sortiert u
 - **Undo/Redo** — Snapshot-basierter Verlauf über die letzten 50 Änderungen (`u`/`R`).
 - **Fixieren** — Prompts lassen sich mit der Leertaste dauerhaft fixieren. Ein fixierter Prompt übersteht das automatische Löschen beim Senden mit `s`.
 - **Plan-Modus (`p`) und Clear-Modus (`c`)** — zwei unabhängig kombinierbare, persistente Umschalter. Sind beide aktiv, wird beim Senden erst `/clear`, dann `/plan`, dann der eigentliche Prompt-Text an die Ziel-Pane geschickt. Clear-Modus ist ein einmaliger "Schuss": nach erfolgreichem Senden mit `/clear`-Präfix schaltet er sich selbst wieder ab. Plan-Modus bleibt aktiv, bis er manuell mit `p` umgeschaltet wird.
-- **Reiter** — Alle · Global · Lokal · Fixiert · Log, umschaltbar mit `←`/`→`, jeweils mit Anzahl; beim Start ist Fixiert aktiv. Alle zeigt globale und lokale Prompts zusammen, Fixiert nur die fixierten (Herkunft jeweils als `G`/`L`). Neue Prompts landen im aktiven Reiter (in Alle: global, in Fixiert: global und sofort fixiert).
+- **Reiter** — Alle · Global · Lokal · Fixiert · Log, umschaltbar mit `←`/`→`, jeweils mit Anzahl; beim Start ist Fixiert aktiv. Jeder Reiter merkt sich seine Cursorposition, solange qDrover läuft. Alle zeigt globale und lokale Prompts zusammen, Fixiert nur die fixierten (Herkunft jeweils als `G`/`L`). Neue Prompts landen im aktiven Reiter (in Alle: global, in Fixiert: global und sofort fixiert).
 - **Log** — die letzten 10 gesendeten Texte mit Zeitstempel im Log-Reiter (nur lesend).
 - **Fünf Sende-Tasten**, alle senden an die Nachbar-Pane in der jeweiligen Richtung bzw. nach oben:
   | Taste | Aktion |
