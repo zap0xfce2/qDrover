@@ -13,7 +13,7 @@ Keeps the project's local qDrover list in sync with the roadmap: one self-contai
 2. **Make sure every roadmap item is numbered.** qDrover matches prompts to topics by these numbers, so they must be unique and stable. Format: an ordered list `1. Topic`, `2. Topic`, `3. Topic`, … If items lack a number, edit the roadmap file and add them: keep existing numbers untouched, give each unnumbered item (open, done or struck alike) the next free number after the current highest, in document order. Never renumber or reuse a number, even when items are reordered or removed. Mention the added numbers in the report.
 3. **Pick open topics only.** Skip items marked done, struck through or checked off.
 4. **Read the existing local prompts** from `qdrover.json` in the project root (read only; may not exist yet). Each entry has an `id` and a `content` whose first line is the headline.
-5. **Write one prompt per new topic** (topics that already have a matching prompt — same `#<number>` prefix or same meaning — are left alone) that Claude Code could execute in a fresh session without this conversation. The prompt may be as detailed as the topic needs, but it must have this shape:
+5. **Write one prompt per new or changed topic** (topics whose matching prompt — same `#<number>` prefix or same meaning — still fits are left alone) that Claude Code could execute in a fresh session without this conversation. The prompt may be as detailed as the topic needs, but it must have this shape:
    - **Line 1: a short headline** summarising this prompt (roughly 3–8 words, no trailing period), e.g. `Session-Migration entfernen` or `README-Screenshot erneuern`. Always prefix it with the roadmap number as `#<number> `, e.g. `#3 Session-Migration entfernen`, so the number is visible in qDrover. qDrover shows the start of the first line as the list preview, so every headline must be distinct from the others and from existing prompts. Never start several prompts with the same words (no generic openers like "Entferne die …", "Bitte …", "Aufgabe:").
    - **Line 2: empty.**
    - **Then the body:** the goal in one sentence, the relevant context (files, constraints, conventions of this project) and what "done" means.
@@ -25,10 +25,16 @@ Keeps the project's local qDrover list in sync with the roadmap: one self-contai
    ```
 
    Do not edit `qdrover.json` by hand — `qdrover add` assigns IDs, merges safely with running instances and notifies them.
+
+   **Update changed topics** instead of adding a second prompt: when a numbered topic's wording or scope changed and its prompt no longer fits, replace the whole prompt (same shape, same `#<number>`) via its number (or its `id` for older prompts without one):
+
+   ```bash
+   printf '%s\n' '#3 Session-Migration entfernen' '' 'Entferne …' | qdrover edit 3
+   ```
 7. **Remove obsolete prompts.** A local prompt is obsolete when its topic is now struck through, marked done or no longer in the roadmap. Match by `#<number>` prefix first, then by meaning, not exact text. Older prompts without a number are matched by meaning only; leave them as they are. Only remove prompts that clearly belong to a roadmap topic; leave prompts unrelated to the roadmap untouched. If unsure, ask the user instead of removing. One call per prompt, from the project root:
 
    ```bash
-   qdrover remove <id>
+   qdrover remove 3      # by roadmap number, or: qdrover remove <id>
    ```
 
-8. **Report** in a short list: which prompts were added (`hinzugefügt:`), skipped as duplicates (`bereits vorhanden:`) and removed (`gelöscht:` with headline), plus roadmap items that just got a number (`nummeriert:`). If `qdrover` is not installed, tell the user to run `task install` in the qDrover repo.
+8. **Report** in a short list: which prompts were added (`hinzugefügt:`), skipped as duplicates (`bereits vorhanden:`) and updated (`geändert:` with headline), removed (`gelöscht:` with headline), plus roadmap items that just got a number (`nummeriert:`). If `qdrover` is not installed, tell the user to run `task install` in the qDrover repo.
