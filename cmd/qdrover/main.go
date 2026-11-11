@@ -25,6 +25,8 @@ func run(args []string) error {
 		return runSend(args[1:], os.Stdin)
 	case "add":
 		return runAddCommand(args[1:], os.Stdin, os.Stdout)
+	case "edit":
+		return runEditCommand(args[1:], os.Stdin, os.Stdout)
 	case "remove":
 		return runRemoveCommand(args[1:], os.Stdout)
 	case "-h", "--help":
@@ -37,5 +39,5 @@ func run(args []string) error {
 
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "qDrover — Board mit Herdr-Dispatch-Sender")
-	fmt.Fprintln(w, "\nUsage:\n  qdrover\n  qdrover send [query] [--direction up|down|left|right]\n  qdrover add [prompt]   (lokaler Prompt in ./qdrover.json, Text auch über stdin)\n  qdrover remove <id>    (lokalen Prompt aus ./qdrover.json löschen)")
+	fmt.Fprintln(w, "\nUsage:\n  qdrover\n  qdrover send [query] [--direction up|down|left|right]\n  qdrover add [prompt]   (lokaler Prompt in ./qdrover.json, Text auch über stdin)\n  qdrover edit <id|nr> [prompt]  (lokalen Prompt ersetzen, Nummer = \"#<nr>\" am Anfang der ersten Zeile, Text auch über stdin)\n  qdrover remove <id|nr>  (lokalen Prompt aus ./qdrover.json löschen)")
 }
