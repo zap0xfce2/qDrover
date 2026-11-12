@@ -158,3 +158,19 @@ func TestAddScopedPrompt_SetsScope(t *testing.T) {
 		t.Fatalf("erwarte Scope local, habe %q", got)
 	}
 }
+
+func TestSetScope_ChangesScopeOfLivePrompt(t *testing.T) {
+	b := Board{}.AddPrompt("t1", "a", 100)
+
+	b, _ = b.SetScope("t1", ScopeLocal)
+
+	if !b.LivePrompts()[0].IsLocal() {
+		t.Fatal("erwarte lokalen Prompt nach SetScope")
+	}
+}
+
+func TestSetScope_ErrorsForUnknownPrompt(t *testing.T) {
+	if _, err := (Board{}).SetScope("x", ScopeLocal); err == nil {
+		t.Fatal("erwarte Fehler für unbekannte ID")
+	}
+}

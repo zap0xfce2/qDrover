@@ -37,6 +37,10 @@ type MovePrompt struct {
 }
 type FocusPrompt struct{ ID domain.PromptID }
 type ToggleMarked struct{ ID domain.PromptID }
+type SetScope struct {
+	ID    domain.PromptID
+	Scope domain.Scope
+}
 type Undo struct{}
 type Redo struct{}
 type TogglePlanMode struct{}
@@ -56,6 +60,7 @@ func (RestorePrompt) isAction()   {}
 func (MovePrompt) isAction()      {}
 func (FocusPrompt) isAction()     {}
 func (ToggleMarked) isAction()    {}
+func (SetScope) isAction()        {}
 func (Undo) isAction()            {}
 func (Redo) isAction()            {}
 func (TogglePlanMode) isAction()  {}

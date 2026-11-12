@@ -418,27 +418,6 @@ func TestSyncScroll_FocusMovingWithinWindow_KeepsScrollStartStable(t *testing.T)
 	}
 }
 
-func TestSyncScroll_FocusFirst_MakesFirstPromptVisibleAgain(t *testing.T) {
-	board := domain.Board{}
-	for i := 0; i < 10; i++ {
-		board = board.AddPrompt(domain.PromptID(fmt.Sprintf("t%d", i)), fmt.Sprintf("Prompt %d", i), 100)
-	}
-	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	m := onGlobalTab(New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
-	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 8})
-	m = updated.(Model)
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
-	m = updated.(Model)
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
-	m = updated.(Model)
-
-	out := m.View()
-	if !strings.Contains(out, "Prompt 0") {
-		t.Fatalf("erwarte ersten Prompt sichtbar nach 'g' aus gescrolltem Zustand, habe:\n%s", out)
-	}
-}
-
 func TestView_BoardMode_FewPromptsWithHeight_FooterPinnedToBottom(t *testing.T) {
 	m := newTestModel()
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 10})

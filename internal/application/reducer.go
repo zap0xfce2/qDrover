@@ -82,6 +82,17 @@ func Reduce(state AppState, action Action, clock ports.Clock, ids ports.IDGenera
 		state = reconcileFocus(state, prevIndex)
 		return state, []Effect{PersistBoard{Board: state.Board}}, nil
 
+	case SetScope:
+		state.History.Push(state.Board.Prompts)
+		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
+		b, err := state.Board.SetScope(a.ID, a.Scope)
+		if err != nil {
+			return state, nil, err
+		}
+		state.Board = b
+		state = reconcileFocus(state, prevIndex)
+		return state, []Effect{PersistBoard{Board: state.Board}}, nil
+
 	case Undo:
 		prevIndex := indexOfFocused(VisibleLive(state), state.FocusedID)
 		prevPrompts, ok := state.History.Undo(state.Board.Prompts)

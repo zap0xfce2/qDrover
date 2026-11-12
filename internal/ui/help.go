@@ -11,11 +11,9 @@ func (m Model) handleHelpKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 const helpText = `Tastenkürzel
 
 Navigation
-  j / ↓        einen Prompt nach unten
-  k / ↑        einen Prompt nach oben
-  g            zum ersten Prompt
-  G            zum letzten Prompt
-  ←/→          Reiter wechseln (Alle · Global · Lokal · Fixiert · Log)
+  j / ↓        einen Prompt nach unten (vom letzten zum ersten)
+  k / ↑        einen Prompt nach oben (vom ersten zum letzten)
+  ←/→          Reiter im Kreis wechseln (Alle · Global · Lokal · Fixiert · Log)
 
 Bearbeiten
   i            neuen Prompt anlegen
@@ -23,6 +21,7 @@ Bearbeiten
   d            fokussierten Prompt löschen
   J            Prompt nach unten verschieben (nur Global/Lokal)
   K            Prompt nach oben verschieben (nur Global/Lokal)
+  m            Prompt zwischen Global und Lokal hin- und herschieben
   V            Zwischenablage als neuen Prompt einfügen (braucht xclip/xsel/wl-clipboard + X11/Wayland)
   C            fokussierten Prompt in Zwischenablage kopieren (auch über SSH per OSC52)
 

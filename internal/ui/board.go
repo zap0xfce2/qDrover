@@ -4,6 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"qdrover/internal/application"
+	"qdrover/internal/domain"
 	"qdrover/internal/ports"
 )
 
@@ -65,10 +66,8 @@ func (m Model) handleBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.movePrompt(1), nil
 	case "K":
 		return m.movePrompt(-1), nil
-	case "g":
-		return m.focusFirst(), nil
-	case "G":
-		return m.focusLast(), nil
+	case "m":
+		return m.toggleFocusedScope(), nil
 	case " ":
 		return m.toggleMarked(), nil
 	case "V":
@@ -124,20 +123,19 @@ func (m Model) pasteAsPrompt() Model {
 	return m.createPrompt(content)
 }
 
-func (m Model) focusFirst() Model {
-	live := application.VisibleLive(m.state)
-	if len(live) == 0 {
-		return m
+// toggleFocusedScope schiebt den fokussierten Prompt zwischen Global und Lokal hin und her (m).
+func (m Model) toggleFocusedScope() Model {
+	for _, p := range application.VisibleLive(m.state) {
+		if m.state.FocusedID == nil || p.ID != *m.state.FocusedID {
+			continue
+		}
+		scope := domain.ScopeLocal
+		if p.IsLocal() {
+			scope = domain.ScopeGlobal
+		}
+		return m.dispatch(application.SetScope{ID: p.ID, Scope: scope})
 	}
-	return m.dispatch(application.FocusPrompt{ID: live[0].ID})
-}
-
-func (m Model) focusLast() Model {
-	live := application.VisibleLive(m.state)
-	if len(live) == 0 {
-		return m
-	}
-	return m.dispatch(application.FocusPrompt{ID: live[len(live)-1].ID})
+	return m
 }
 
 func (m Model) moveFocus(delta int) Model {
@@ -148,14 +146,7 @@ func (m Model) moveFocus(delta int) Model {
 	if m.state.FocusedID == nil {
 		return m.dispatch(application.FocusPrompt{ID: live[0].ID})
 	}
-	idx := focusedIndex(live, m.state.FocusedID)
-	idx += delta
-	if idx < 0 {
-		idx = 0
-	}
-	if idx > len(live)-1 {
-		idx = len(live) - 1
-	}
+	idx := (focusedIndex(live, m.state.FocusedID) + delta + len(live)) % len(live)
 	return m.dispatch(application.FocusPrompt{ID: live[idx].ID})
 }
 

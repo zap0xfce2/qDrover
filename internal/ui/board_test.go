@@ -116,25 +116,27 @@ func TestBoardKey_ShiftJ_MovesFocusedPromptDown(t *testing.T) {
 	}
 }
 
-func TestBoardKey_G_FocusesLastPrompt_g_FocusesFirstPrompt(t *testing.T) {
-	board := domain.Board{}
-	board = board.AddPrompt("t1", "eins", 100)
-	board = board.AddPrompt("t2", "zwei", 100)
-	board = board.AddPrompt("t3", "drei", 100)
+func TestBoardKey_m_MovesGlobalPromptToLocal(t *testing.T) {
+	board := domain.Board{}.AddPrompt("t1", "eins", 100)
 	state := application.AppState{Board: board, History: application.NewHistory(50)}
-	executor := application.NewExecutor(nullStore{}, nil)
-	m := onGlobalTab(New(state, executor, fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}))
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}).applyTab(tabGlobal)
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
-	next := updated.(Model)
-	if *next.state.FocusedID != domain.PromptID("t3") {
-		t.Fatalf("erwarte Fokus auf t3 (letzter Prompt) nach G, habe %s", *next.state.FocusedID)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+
+	if !updated.(Model).state.Board.LivePrompts()[0].IsLocal() {
+		t.Fatal("erwarte lokalen Prompt nach m")
 	}
+}
 
-	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
-	next = updated.(Model)
-	if *next.state.FocusedID != domain.PromptID("t1") {
-		t.Fatalf("erwarte Fokus auf t1 (erster Prompt) nach g, habe %s", *next.state.FocusedID)
+func TestBoardKey_m_MovesLocalPromptToGlobal(t *testing.T) {
+	board := domain.Board{}.AddScopedPrompt("t1", "eins", domain.ScopeLocal, 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}).applyTab(tabLocal)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("m")})
+
+	if updated.(Model).state.Board.LivePrompts()[0].IsLocal() {
+		t.Fatal("erwarte globalen Prompt nach m")
 	}
 }
 
@@ -714,5 +716,30 @@ func TestBoardKey_ShiftC_NoFocusedPrompt_IsNoOp(t *testing.T) {
 
 	if fc.writeCalls != 0 {
 		t.Fatalf("erwarte keinen WriteAll-Aufruf ohne fokussierten Prompt, habe %d", fc.writeCalls)
+	}
+}
+
+func TestBoardKey_Up_OnFirstPromptWrapsToLast(t *testing.T) {
+	board := domain.Board{}.AddPrompt("t1", "eins", 100).AddPrompt("t2", "zwei", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}).applyTab(tabGlobal)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+
+	if *updated.(Model).state.FocusedID != "t2" {
+		t.Fatalf("erwarte Fokus auf t2, habe %s", *updated.(Model).state.FocusedID)
+	}
+}
+
+func TestBoardKey_Down_OnLastPromptWrapsToFirst(t *testing.T) {
+	board := domain.Board{}.AddPrompt("t1", "eins", 100).AddPrompt("t2", "zwei", 100)
+	state := application.AppState{Board: board, History: application.NewHistory(50)}
+	m := New(state, application.NewExecutor(nullStore{}, nil), fakeClock{now: 100}, &fakeIDGen{}, &fakeClipboard{}).applyTab(tabGlobal)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	updated, _ = updated.(Model).Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	if *updated.(Model).state.FocusedID != "t1" {
+		t.Fatalf("erwarte Fokus auf t1, habe %s", *updated.(Model).state.FocusedID)
 	}
 }

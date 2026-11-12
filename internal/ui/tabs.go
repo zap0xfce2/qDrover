@@ -73,7 +73,8 @@ func (m Model) applyTab(t tab) Model {
 
 // switchTab wechselt um delta Reiter, am Rand geklemmt.
 func (m Model) switchTab(delta int) Model {
-	return m.applyTab(tab(min(max(int(m.tab)+delta, int(tabAll)), int(tabLog))))
+	count := int(tabLog) + 1
+	return m.applyTab(tab((int(m.tab) + delta + count) % count))
 }
 
 // newPromptAction liefert die CreatePrompt-Action für i/V im aktiven Reiter;

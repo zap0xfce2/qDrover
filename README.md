@@ -74,11 +74,9 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 **Navigation**
 | Taste | Aktion |
 |---|---|
-| `j` / `↓` | einen Prompt nach unten |
-| `k` / `↑` | einen Prompt nach oben |
-| `g` | zum ersten Prompt |
-| `G` | zum letzten Prompt |
-| `←` / `→` | Reiter wechseln (Alle · Global · Lokal · Fixiert · Log) |
+| `j` / `↓` | einen Prompt nach unten (vom letzten zum ersten) |
+| `k` / `↑` | einen Prompt nach oben (vom ersten zum letzten) |
+| `←` / `→` | Reiter im Kreis wechseln (Alle · Global · Lokal · Fixiert · Log) |
 
 **Bearbeiten**
 | Taste | Aktion |
@@ -88,6 +86,7 @@ Der vollständige Hilfetext ist jederzeit im TUI per `h` abrufbar:
 | `d` | fokussierten Prompt löschen |
 | `J` | Prompt nach unten verschieben (nur in Global/Lokal) |
 | `K` | Prompt nach oben verschieben (nur in Global/Lokal) |
+| `m` | Prompt zwischen Global (`global.json`) und Lokal (`qdrover.json`) hin- und herschieben |
 | `V` | Zwischenablage als neuen Prompt einfügen (braucht `xclip`/`xsel`/`wl-clipboard` + X11/Wayland) |
 | `C` | fokussierten Prompt in Zwischenablage kopieren (auch über SSH per OSC52) |
 
