@@ -65,6 +65,20 @@ func (b Board) ToggleMarked(id PromptID) (Board, error) {
 	return b, fmt.Errorf("prompt %s nicht gefunden", id)
 }
 
+// SetScope verschiebt einen Prompt zwischen global.json und qdrover.json;
+// der Store erledigt das Umziehen beim nächsten Save per Merge.
+func (b Board) SetScope(id PromptID, scope Scope) (Board, error) {
+	newPrompts := append([]Prompt{}, b.Prompts...)
+	for i, t := range newPrompts {
+		if t.ID == id && t.IsLive() {
+			newPrompts[i].Scope = scope
+			b.Prompts = newPrompts
+			return b, nil
+		}
+	}
+	return b, fmt.Errorf("prompt %s nicht gefunden", id)
+}
+
 func (b Board) DeletePrompt(id PromptID, now Timestamp) (Board, error) {
 	newPrompts := append([]Prompt{}, b.Prompts...)
 	found := false

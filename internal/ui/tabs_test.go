@@ -77,8 +77,16 @@ func TestTabs_RightArrowFromFixedSwitchesToLog(t *testing.T) {
 	}
 }
 
-func TestTabs_LeftAtFirstTabStays(t *testing.T) {
+func TestTabs_LeftAtFirstTabWrapsToLog(t *testing.T) {
 	m := pressKey(newMixedScopeModel().applyTab(tabAll), keyLeft)
+
+	if m.tab != tabLog {
+		t.Fatalf("erwarte Reiter Log, habe %d", m.tab)
+	}
+}
+
+func TestTabs_RightAtLogWrapsToAll(t *testing.T) {
+	m := pressKey(newMixedScopeModel().applyTab(tabLog), keyRight)
 
 	if m.tab != tabAll {
 		t.Fatalf("erwarte Reiter Alle, habe %d", m.tab)

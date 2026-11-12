@@ -7,6 +7,11 @@ vars:
     sh: date +v%y%m%d%H%M
 
 tasks:
+  default:
+    desc: Alias für install
+    cmds:
+      - task: install
+
   install:
     desc: Passendes Binary für diese Plattform nach ~/bin/qdrover und den Skill nach ~/.claude/skills installieren
     deps: [dist-build]

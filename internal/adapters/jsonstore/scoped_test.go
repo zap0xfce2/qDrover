@@ -457,3 +457,31 @@ func TestScopedStore_FailedSendOfLocal_LocalFileUnchanged(t *testing.T) {
 		t.Fatalf("erwarte unveränderte Lokaldatei:\n%s\nhabe:\n%s", before, after)
 	}
 }
+
+func TestScopedStore_LocalToGlobal_MovesBetweenFiles(t *testing.T) {
+	p := newScopedPaths(t)
+	seedLocal(t, p)
+	s := p.store()
+	board, _ := mustLoad(t, s).SetScope("l1", domain.ScopeGlobal)
+	mustSave(t, s, board)
+
+	prompt, _ := findPrompt(mustLoad(t, p.store()), "l1")
+
+	if prompt.IsLocal() {
+		t.Fatalf("erwarte globalen Prompt nach Neu-Laden, habe %+v", prompt)
+	}
+}
+
+func TestScopedStore_GlobalToLocal_MovesBetweenFiles(t *testing.T) {
+	p := newScopedPaths(t)
+	s := p.store()
+	mustSave(t, s, mustLoad(t, s).AddPrompt("g1", "global", 100))
+	board, _ := mustLoad(t, s).SetScope("g1", domain.ScopeLocal)
+	mustSave(t, s, board)
+
+	prompt, _ := findPrompt(mustLoad(t, p.store()), "g1")
+
+	if !prompt.IsLocal() {
+		t.Fatalf("erwarte lokalen Prompt nach Neu-Laden, habe %+v", prompt)
+	}
+}

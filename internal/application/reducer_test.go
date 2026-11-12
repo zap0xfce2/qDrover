@@ -626,3 +626,24 @@ func TestReduce_Refresh_PersistsCurrentBoardWithoutHistory(t *testing.T) {
 		t.Fatalf("erwarte PersistBoard mit aktuellem Board und keinen Undo-Eintrag, habe %+v", effects)
 	}
 }
+
+func TestReduce_SetScope_MovesPromptToLocal(t *testing.T) {
+	state := AppState{Board: domain.Board{}.AddPrompt("t1", "a", 100), History: NewHistory(50)}
+
+	newState, _, _ := Reduce(state, SetScope{ID: "t1", Scope: domain.ScopeLocal}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if !newState.Board.LivePrompts()[0].IsLocal() {
+		t.Fatal("erwarte lokalen Prompt nach SetScope")
+	}
+}
+
+func TestReduce_SetScope_IsUndoable(t *testing.T) {
+	state := AppState{Board: domain.Board{}.AddPrompt("t1", "a", 100), History: NewHistory(50)}
+	state, _, _ = Reduce(state, SetScope{ID: "t1", Scope: domain.ScopeLocal}, fakeClock{now: 100}, &fakeIDGen{})
+
+	state, _, _ = Reduce(state, Undo{}, fakeClock{now: 100}, &fakeIDGen{})
+
+	if state.Board.LivePrompts()[0].IsLocal() {
+		t.Fatal("erwarte globalen Prompt nach Undo")
+	}
+}
